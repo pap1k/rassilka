@@ -11,7 +11,7 @@ class MenuNames:
     distrib_delete_confirm = "distrib_del_yesno"
     distrib_mgnmt = "distribs"
     distrib_edit = "distrib_edit"
-    distrib_send_menu = "distrib_create_menu"
+    distrib_send_menu = "distrib_send_menu"
 
 def start_menu(is_admin: bool) -> InlineKeyboardMarkup:
     mk = InlineKeyboardMarkup()
@@ -21,7 +21,12 @@ def start_menu(is_admin: bool) -> InlineKeyboardMarkup:
     mk.add(InlineKeyboardButton("Управление рассылками", callback_data=f"menu:{MenuNames.distrib_mgnmt}"))
     return mk
 
-def distrib_send_menu(userid, page=1):
+def admin_menu() -> InlineKeyboardMarkup:
+    mk = InlineKeyboardMarkup()
+    mk.add(InlineKeyboardButton("[A] Управление пользователями", callback_data=f"menu:{MenuNames.users_mgnmt}"))
+    return mk
+
+def distrib_send_menu(userid, page=1) -> InlineKeyboardMarkup:
     mk = InlineKeyboardMarkup()
     lim = 10
     with Session(autoflush=False, bind=engine) as db:
@@ -31,7 +36,7 @@ def distrib_send_menu(userid, page=1):
     mk.add(InlineKeyboardButton("< Главное меню", callback_data=f"{MenuNames.distrib_mgnmt}:back"))
     return mk
 
-def distrib_mgnmt_menu(userid, page=1):
+def distrib_mgnmt_menu(userid, page=1) -> InlineKeyboardMarkup:
     mk = InlineKeyboardMarkup()
     mk.add(InlineKeyboardButton("> Создать рассылку", callback_data=f"{MenuNames.distrib_mgnmt}:new"))
     lim = 10
@@ -46,7 +51,7 @@ def distrib_mgnmt_menu(userid, page=1):
     mk.add(InlineKeyboardButton("< Главное меню", callback_data=f"{MenuNames.distrib_mgnmt}:back"))
     return mk
 
-def user_mgnmt_menu(page=1):
+def user_mgnmt_menu(page=1) -> InlineKeyboardMarkup:
     mk = InlineKeyboardMarkup()
     mk.add(InlineKeyboardButton("> Добавить нового", callback_data=f"{MenuNames.users_mgnmt}:new"))
     lim = 10
@@ -61,19 +66,19 @@ def user_mgnmt_menu(page=1):
     mk.add(InlineKeyboardButton("< Главное меню", callback_data=f"{MenuNames.users_mgnmt}:back"))
     return mk
 
-def distrib_delete_confirm_menu(username, distid):
+def distrib_delete_confirm_menu(username, distid) -> InlineKeyboardMarkup:
     mk = InlineKeyboardMarkup()
     mk.add(InlineKeyboardButton("Да", callback_data=f"{MenuNames.distrib_delete_confirm}:{distid}-yes"))
     mk.add(InlineKeyboardButton("Нет", callback_data=f"{MenuNames.distrib_delete_confirm}:{distid}-no"))
     return mk
 
-def user_delete_confirm_menu(username, userid):
+def user_delete_confirm_menu(username, userid) -> InlineKeyboardMarkup:
     mk = InlineKeyboardMarkup()
     mk.add(InlineKeyboardButton("Да", callback_data=f"{MenuNames.users_delete_confirm}:{userid}-yes"))
     mk.add(InlineKeyboardButton("Нет", callback_data=f"{MenuNames.users_delete_confirm}:{userid}-no"))
     return mk
 
-def distrib_edit_menu(chatlist: list[list[str, int, bool]], x, y, delete = False, id=0):
+def distrib_edit_menu(chatlist: list[list[str, int, bool]], x, y, delete = False, id=0) -> InlineKeyboardMarkup:
     mk = InlineKeyboardMarkup()
     for chat in chatlist[x:y]:
         status = "🟢" if chat[2] else "🔴"

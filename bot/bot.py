@@ -1,13 +1,13 @@
 import telebot
+import telethon
 import config, telebot, asyncio
 from orm.models import User, Distribs
 from sqlalchemy.orm import Session
-from pyrogram import Client
 
+from user.user import auth_qr, create_client
 from orm.db import engine
-from user.user import TgUser
 from bot.history import HistoryController
-from bot.menu import start_menu, MenuNames, user_mgnmt_menu, user_delete_confirm_menu, distrib_mgnmt_menu, distrib_edit_menu, distrib_send_menu, distrib_delete_confirm_menu
+from bot.menu import start_menu, MenuNames, user_mgnmt_menu, user_delete_confirm_menu, distrib_mgnmt_menu, distrib_edit_menu, distrib_send_menu, distrib_delete_confirm_menu, admin_menu
 
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
@@ -24,20 +24,26 @@ def menu(user: telebot.types.User):
     is_admin = user.id in config.admin_id
     if not is_admin:
         with Session(autoflush=False, bind=engine) as db:
-            users = db.query(User).all()
-            users_ids = [v.id for v in users]
-            if user.id not in users_ids:
+            dbuser = db.query(User).filter(User.id == user.id).first()
+            if not dbuser:
                 print("Попытка доступа незарегистрированного пользователя", user.id)
                 return
-        
-    history.init_user(user.id)
-    print(history.history)
-    bot.send_message(user.id, "Выберите пункт меню:", reply_markup=start_menu(is_admin))
-
-def get_chats(cl: Client):
-    for dialog in cl.get_dialogs():
-        print(dialog.chat.title or dialog.chat.first_name)
-
+            else:
+                async def check_auth():
+                    client = create_client(dbuser.username)
+                    async with client:
+                        if await client.is_user_authorized():
+                            history.init_user(user.id)
+                            bot.send_message(user.id, "Выберите пункт меню:", reply_markup=start_menu(is_admin))
+                        else:
+                            bot.send_message(user.id, "Вы не авторизованы. Войдите в приложение с помощью /auth")
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(check_auth())
+    else:
+        history.init_user(user.id)
+        bot.send_message(user.id, "Выберите пункт админ-меню:", reply_markup=admin_menu())
+    
 @bot.message_handler(["start", "menu"])
 def start(message: telebot.types.Message):
     menu(message.from_user)
@@ -46,22 +52,15 @@ def start(message: telebot.types.Message):
 def cancel(message: telebot.types.Message):
     menu(message.from_user)
 
-@bot.message_handler(["token"])
-def getsession(message: telebot.types.Message):
+@bot.message_handler(["auth"])
+def auth(message: telebot.types.Message):
     with Session(autoflush=False, bind=engine) as db:
         user = db.query(User).filter(User.id == message.from_user.id).first()
         if user:
-            bot.send_message(message.chat.id, "Токен доступа экспортирован и сохранен")
-            async def save_token():
-                async with Client(user.username, api_id=user.api_id, api_hash=user.api_hash) as app:
-                    st = await app.export_session_string()
-                    print(st)
-                    user.session_string = st
-                    db.commit()
-
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(save_token())
+            loop.run_until_complete(auth_qr(user.username, bot, message.chat.id))
+            
 
 @bot.callback_query_handler(lambda x: True)
 def menu_cb(cb: telebot.types.CallbackQuery):
@@ -135,16 +134,20 @@ def menu_cb(cb: telebot.types.CallbackQuery):
             with Session(autoflush=False, bind=engine) as db:
                 u = db.query(User).filter(User.id == cb.from_user.id).first()
                 async def getdialogs():
-                    async with Client(u.username, api_id=u.api_id, api_hash=u.api_hash) as app:
-                        dialogs = []
-                        async for dialog in app.get_dialogs():
-                            dialogs.append([str(dialog.chat.title or dialog.chat.first_name), dialog.chat.id, False])
-                        else:
-                            history.storage[cb.from_user.id]['dialogs'] = dialogs
-                            history.move_down(cb.from_user.id, MenuNames.distrib_edit)
-                            x, y = get_dialogs_bounds(cb.from_user.id, dialogs)
-                            r = bot.send_message(cb.message.chat.id, "Выберите диалоги для рассылки:", reply_markup=distrib_edit_menu(dialogs, x, y))
-                            history.storage[cb.from_user.id]['dialogs_id'] = [r.message_id, r.chat.id]
+                    def titleorfname(ent):
+                        if isinstance(ent, telethon.types.Channel) or isinstance(ent, telethon.types.Channel):
+                            return ent.title
+                        if isinstance(ent, telethon.types.User):
+                            return ent.first_name
+                    app = create_client(u.username)
+                    async with app:
+                        tgdialogs = await app.get_dialogs()
+                        dialogs =  [[str(titleorfname(dialog.entity)), dialog.id, False] for dialog in tgdialogs]
+                        history.storage[cb.from_user.id]['dialogs'] = dialogs
+                        history.move_down(cb.from_user.id, MenuNames.distrib_edit)
+                        x, y = get_dialogs_bounds(cb.from_user.id, dialogs)
+                        r = bot.send_message(cb.message.chat.id, "Выберите диалоги для рассылки:", reply_markup=distrib_edit_menu(dialogs, x, y))
+                        history.storage[cb.from_user.id]['dialogs_id'] = [r.message_id, r.chat.id]
 
                 bot.send_message(cb.message.chat.id, "Получаю список диалогов, подождите...")
                 loop = asyncio.new_event_loop()
@@ -163,18 +166,22 @@ def menu_cb(cb: telebot.types.CallbackQuery):
             with Session(autoflush=False, bind=engine) as db:
                 u = db.query(User).filter(User.id == cb.from_user.id).first()
                 dbdialogs = db.query(Distribs).filter(Distribs.id == int(id)).first().chats.split(',')
-
+                
                 async def getdialogs():
-                    async with Client(u.username, api_id=u.api_id, api_hash=u.api_hash) as app:
-                        dialogs = []
-                        async for dialog in app.get_dialogs():
-                            dialogs.append([str(dialog.chat.title or dialog.chat.first_name), dialog.chat.id, str(dialog.chat.id) in dbdialogs])
-                        else:
-                            history.storage[cb.from_user.id]['dialogs'] = dialogs
-                            history.move_down(cb.from_user.id, MenuNames.distrib_edit)
-                            x, y = get_dialogs_bounds(cb.from_user.id, dialogs)
-                            r = bot.send_message(cb.message.chat.id, f"Редактрирвоание рассылки {name}", reply_markup=distrib_edit_menu(dialogs, x, y, delete=True, id=id))
-                            history.storage[cb.from_user.id]['dialogs_id'] = [r.message_id, r.chat.id]
+                    def titleorfname(ent):
+                        if isinstance(ent, telethon.types.Channel) or isinstance(ent, telethon.types.Channel):
+                            return ent.title
+                        if isinstance(ent, telethon.types.User):
+                            return ent.first_name
+                    app = create_client(u.username)
+                    async with app:
+                        tgdialogs = await app.get_dialogs()
+                        dialogs =  [[str(titleorfname(dialog.entity)), dialog.id, dialog.id in dbdialogs] for dialog in tgdialogs]
+                        history.storage[cb.from_user.id]['dialogs'] = dialogs
+                        history.move_down(cb.from_user.id, MenuNames.distrib_edit)
+                        x, y = get_dialogs_bounds(cb.from_user.id, dialogs)
+                        r = bot.send_message(cb.message.chat.id, f"Редактрирвоание рассылки {name}", reply_markup=distrib_edit_menu(dialogs, x, y, delete=True, id=id))
+                        history.storage[cb.from_user.id]['dialogs_id'] = [r.message_id, r.chat.id]
 
                 bot.send_message(cb.message.chat.id, "Получаю список диалогов, подождите...")
                 loop = asyncio.new_event_loop()
@@ -189,7 +196,7 @@ def menu_cb(cb: telebot.types.CallbackQuery):
         if pl == "back":
             return  menu(cb.from_user)
         elif pl == "new":
-            msg = "Введите даныне пользователяв следющем формате:\n\nИмя аккаунта (произвольно)\nUSER_ID\nAPI_ID\nAPI_HASH"
+            msg = "Введите даныне пользователяв следющем формате:\n\nTelegram ID\nНазвание (произвольное, уникальное)"
             bot.send_message(cb.message.chat.id, msg)
             bot.register_next_step_handler_by_chat_id(cb.message.chat.id, new_user_data_input)
         elif pl == "next":
@@ -239,14 +246,21 @@ def send_distrib_input(message: telebot.types.Message):
 
         async def senddistrib():
             #in_memory=True, session_string=u.session_string
-            async with Client(u.username, api_id=u.api_id, api_hash=u.api_hash) as app:
-                app.get_dialogs()
+            app = create_client(u.username)
+            async with app:
+                await app.get_dialogs()
                 for chatid in history.storage[message.from_user.id]['chats'].split(','):
-                    id = int(chatid) if chatid.startswith('-') else chatid
-                    x = await app.resolve_peer(id)
-                    await app.send_message(chat_id=id, text=message.text)
-                else:
-                    bot.send_message(message.chat.id, "Рассылка выполнена успешно")
+                    ent = await app.get_entity(int(chatid))
+                    await app.send_message(ent, message.text)
+                bot.send_message(message.chat.id, "Рассылка выполнена успешно")
+            # async with Client(u.username, api_id=u.api_id, api_hash=u.api_hash) as app:
+            #     app.get_dialogs()
+            #     for chatid in history.storage[message.from_user.id]['chats'].split(','):
+            #         id = int(chatid) if chatid.startswith('-') else chatid
+            #         x = await app.resolve_peer(id)
+            #         await app.send_message(chat_id=id, text=message.text)
+            #     else:
+            #         bot.send_message(message.chat.id, "Рассылка выполнена успешно")
 
         bot.send_message(message.chat.id, "Выполняю рассылку...")
         loop = asyncio.new_event_loop()
@@ -268,20 +282,18 @@ def new_user_data_input(message: telebot.types.Message):
     try:
         data = message.text.split("\n")
         print(data)
-        username = data[0]
-        userid = int(data[1])
-        apiid = int(data[2])
-        apihash = data[3]
+        userid = int(data[0])
+        username = data[1]
     except Exception as ex:
         print(ex)
         return bot.send_message(message.chat.id, "Данные введены в неверном формате. Попробуйте еще раз")
     
     with Session(autoflush=False, bind=engine) as db:
-        found = db.query(User).filter(User.id == userid).all()
+        found = db.query(User).filter(User.id == userid or User.username == username).all()
         if len(found) > 0:
             return bot.send_message(message.chat.id, "Такой пользователь уже зарегистророван")
         
-        newuser = User(id=userid, username=username, api_id=apiid, api_hash=apihash)
+        newuser = User(id=userid, username=username)
         db.add(newuser)
         db.commit()
 

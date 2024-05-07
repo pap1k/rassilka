@@ -1,18 +1,50 @@
-from orm.models import User
-from pyrogram import Client
+import telethon, telebot, qrcode, asyncio, os
 
-class TgUser:
-    user: User = None
-    app : Client = None
+qr = qrcode.QRCode()
 
-    def __init__(self, username, api_id, api_hash, ) -> None:
-        #self.user = user
-        self.app = Client(username, api_id=api_id, api_hash=api_hash, in_memory=True, session_string=True)
-        #print(self.app.export_session_string())
+def gen_qr(token:str):
+    qr.clear()
+    qr.add_data(token)
 
-    async def get_chats(self):
-        r = await self.app.get_dialogs()
-        print(r)
-        for dialog in r:
-            print(dialog.chat.title or dialog.chat.first_name)
+def display_url_as_qr(url):
+    gen_qr(url)
 
+async def main(client: telethon.TelegramClient, botref: telebot.TeleBot, chat_id: int):
+    if(not client.is_connected()):
+        await client.connect()
+    client.connect()
+    qr_login = await client.qr_login()
+    print(client.is_connected())
+    r = False
+    msg = None
+    fname = f"{chat_id}.png"
+    while not r:
+        gen_qr(qr_login.url)
+        qr.make_image(fill_color="black", back_color="white").save(fname)
+        with open(fname, 'rb') as f:
+            if msg:
+                botref.delete_message(chat_id, msg.message_id)
+            msg = botref.send_photo(chat_id, f, caption="Отсканируйте QR код")
+
+        # Important! You need to wait for the login to complete!
+        try:
+            r = await qr_login.wait(10)
+        except:
+            await qr_login.recreate()
+    os.remove(fname)
+    botref.delete_message(chat_id, msg.message_id)
+    botref.send_message(chat_id, "Вы успешно авторизовались")
+
+TELEGRAM_API_ID=28639018
+TELEGRAM_API_HASH="f014cc12e32f1f618da532184382c3a7"
+
+def create_client(acc_name: str, loop = None) -> telethon.TelegramClient:
+    return telethon.TelegramClient(acc_name, TELEGRAM_API_ID, TELEGRAM_API_HASH,loop=loop, system_version="1.4.2 DistributionxXXL_AMG(OSX/4:1)", device_model="Factory-New Console v0.41")
+
+async def auth_qr(acc_name: str, botref: telebot.TeleBot, chatid: int):
+    loop = asyncio.get_event_loop()
+    asyncio.set_event_loop(loop)
+    client = create_client(acc_name, loop)
+    await main(client, botref, chatid)
+    #client.loop.run_until_complete(main(client, botref, chatid))
+    
