@@ -32,7 +32,7 @@ def distrib_send_menu(userid, page=1) -> InlineKeyboardMarkup:
     with Session(autoflush=False, bind=engine) as db:
         distrs = db.query(Distribs).filter(Distribs.belong_to == userid).limit(lim).offset((page-1)*lim).all()
         for dist in distrs:
-            mk.add(InlineKeyboardButton(dist.name, callback_data=f"{MenuNames.distrib_mgnmt}:{dist.chats}"))
+            mk.add(InlineKeyboardButton(dist.name, callback_data=f"{MenuNames.distrib_mgnmt}:{dist.id}"))
     mk.add(InlineKeyboardButton("< Главное меню", callback_data=f"{MenuNames.distrib_mgnmt}:back"))
     return mk
 

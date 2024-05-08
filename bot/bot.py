@@ -31,12 +31,14 @@ def menu(user: telebot.types.User):
             else:
                 async def check_auth():
                     client = create_client(dbuser.username)
-                    async with client:
-                        if await client.is_user_authorized():
-                            history.init_user(user.id)
-                            bot.send_message(user.id, "Выберите пункт меню:", reply_markup=start_menu(is_admin))
-                        else:
-                            bot.send_message(user.id, "Вы не авторизованы. Войдите в приложение с помощью /auth")
+                    await client.connect()
+                    if await client.is_user_authorized():
+                        history.init_user(user.id)
+                        await client.disconnect()
+                        bot.send_message(user.id, "Выберите пункт меню:", reply_markup=start_menu(is_admin))
+                    else:
+                        await client.disconnect()
+                        bot.send_message(user.id, "Вы не авторизованы. Войдите в приложение с помощью /auth")
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 loop.run_until_complete(check_auth())
@@ -47,6 +49,15 @@ def menu(user: telebot.types.User):
 @bot.message_handler(["start", "menu"])
 def start(message: telebot.types.Message):
     menu(message.from_user)
+
+@bot.message_handler(["sticker"])
+def sticker(message: telebot.types.Message):
+    bot.reply_to(message, "Теперь отправь стикер")
+    bot.register_next_step_handler_by_chat_id(message.chat.id, get_sticker)
+
+def get_sticker(message: telebot.types.Message):
+    print(message)
+    bot.reply_to(message, "Ок", )
 
 @bot.message_handler(["cancel"])
 def cancel(message: telebot.types.Message):
@@ -87,9 +98,11 @@ def menu_cb(cb: telebot.types.CallbackQuery):
         if pl == "back":
             return menu(cb.from_user)
         else:
-            history.storage[cb.from_user.id]['chats'] = pl
-            bot.send_message(cb.message.chat.id, "Введите текст рассылки или перешлите сообщение\n/cancel для отмены.")
-            bot.register_next_step_handler_by_chat_id(cb.message.chat.id, send_distrib_input)
+            with Session(autoflush=False, bind=engine) as db:
+                distr = db.query(Distribs).filter(Distribs.id == int(pl)).first()
+                history.storage[cb.from_user.id]['chats'] = distr.chats
+                bot.send_message(cb.message.chat.id, "Введите текст рассылки или перешлите сообщение\n/cancel для отмены.")
+                bot.register_next_step_handler_by_chat_id(cb.message.chat.id, send_distrib_input)
     
     #МЕНЮ РЕДАКТИРОВАНИЯ РАССЫЛКИ
     elif usermenu == MenuNames.distrib_edit:
@@ -196,7 +209,7 @@ def menu_cb(cb: telebot.types.CallbackQuery):
         if pl == "back":
             return  menu(cb.from_user)
         elif pl == "new":
-            msg = "Введите даныне пользователяв следющем формате:\n\nTelegram ID\nНазвание (произвольное, уникальное)"
+            msg = "Введите данные пользователяв следющем формате:\n\nTelegram ID\nНазвание (произвольное, уникальное)"
             bot.send_message(cb.message.chat.id, msg)
             bot.register_next_step_handler_by_chat_id(cb.message.chat.id, new_user_data_input)
         elif pl == "next":
@@ -248,21 +261,30 @@ def send_distrib_input(message: telebot.types.Message):
             #in_memory=True, session_string=u.session_string
             app = create_client(u.username)
             async with app:
+                errors_slow = []
+                errors_banned = []
+                errors_unk = []
                 await app.get_dialogs()
+                ent_bot = await app.get_entity(7030989354)
+                last_msg = await app.get_messages(ent_bot)
+                bot.send_message(message.chat.id, "Выполняю рассылку...")
                 for chatid in history.storage[message.from_user.id]['chats'].split(','):
                     ent = await app.get_entity(int(chatid))
-                    await app.send_message(ent, message.text)
+                    try:
+                        await app.forward_messages(ent, last_msg, drop_author=True)
+                        #await app.send_message(ent, message.text)
+                    except telethon.errors.rpcerrorlist.SlowModeWaitError:
+                        errors_slow.append(chatid)
+                    except telethon.errors.rpcerrorlist.ChannelPrivateError:
+                        errors_banned.append(chatid)
+                    except Exception as e:
+                        print(e)
+                        errors_unk.append(chatid)
+                    await asyncio.sleep(1/80)
                 bot.send_message(message.chat.id, "Рассылка выполнена успешно")
-            # async with Client(u.username, api_id=u.api_id, api_hash=u.api_hash) as app:
-            #     app.get_dialogs()
-            #     for chatid in history.storage[message.from_user.id]['chats'].split(','):
-            #         id = int(chatid) if chatid.startswith('-') else chatid
-            #         x = await app.resolve_peer(id)
-            #         await app.send_message(chat_id=id, text=message.text)
-            #     else:
-            #         bot.send_message(message.chat.id, "Рассылка выполнена успешно")
+                if len(errors_banned) + len(errors_slow) + len(errors_unk) > 0:
+                    bot.send_message(message.chat.id, f"Есть ошибки. Всего: {len(errors_banned) + len(errors_slow) + len(errors_unk)}\n{len(errors_slow)} столько чатов со слоу модом \n{len(errors_banned)} Столько чатов бан/приватные\n{len(errors_unk)} Столько неопознанных ошибок")
 
-        bot.send_message(message.chat.id, "Выполняю рассылку...")
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(senddistrib())
@@ -286,6 +308,7 @@ def new_user_data_input(message: telebot.types.Message):
         username = data[1]
     except Exception as ex:
         print(ex)
+        bot.register_next_step_handler_by_chat_id(message.chat.id, new_user_data_input)
         return bot.send_message(message.chat.id, "Данные введены в неверном формате. Попробуйте еще раз")
     
     with Session(autoflush=False, bind=engine) as db:

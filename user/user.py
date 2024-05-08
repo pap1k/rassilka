@@ -12,7 +12,7 @@ def display_url_as_qr(url):
 async def main(client: telethon.TelegramClient, botref: telebot.TeleBot, chat_id: int):
     if(not client.is_connected()):
         await client.connect()
-    client.connect()
+    await client.connect()
     qr_login = await client.qr_login()
     print(client.is_connected())
     r = False
@@ -24,7 +24,7 @@ async def main(client: telethon.TelegramClient, botref: telebot.TeleBot, chat_id
         with open(fname, 'rb') as f:
             if msg:
                 botref.delete_message(chat_id, msg.message_id)
-            msg = botref.send_photo(chat_id, f, caption="Отсканируйте QR код")
+            msg = botref.send_photo(chat_id, f, caption=f"Отсканируйте QR код или [нажмите сюда]({qr_login.url})", parse_mode="MarkdownV2")
 
         # Important! You need to wait for the login to complete!
         try:
@@ -39,7 +39,7 @@ TELEGRAM_API_ID=28639018
 TELEGRAM_API_HASH="f014cc12e32f1f618da532184382c3a7"
 
 def create_client(acc_name: str, loop = None) -> telethon.TelegramClient:
-    return telethon.TelegramClient(acc_name, TELEGRAM_API_ID, TELEGRAM_API_HASH,loop=loop, system_version="1.4.2 DistributionxXXL_AMG(OSX/4:1)", device_model="Factory-New Console v0.41")
+    return telethon.TelegramClient(acc_name, TELEGRAM_API_ID, TELEGRAM_API_HASH, loop=loop, system_version="1.4.2 DistributionxXXL_AMG(OSX/4:1)", device_model="Factory-New Console v0.41")
 
 async def auth_qr(acc_name: str, botref: telebot.TeleBot, chatid: int):
     loop = asyncio.get_event_loop()

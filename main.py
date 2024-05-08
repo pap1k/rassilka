@@ -1,8 +1,6 @@
 import asyncio
 from bot.bot import bot
 
-loop = asyncio.get_event_loop()
-loop.create_task(bot.polling(none_stop=True))
-loop.run_forever()
+bot.infinity_polling(none_stop=True)
 
 # auth_qr()
