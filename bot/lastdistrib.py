@@ -1,4 +1,5 @@
 from telethon.hints import Entity
+import telethon
 
 class OneDistrib:
     chat_id:int = 0
@@ -20,7 +21,12 @@ class LastDistrib:
         self.distribs = []
 
     def add(self, entity: Entity, success: bool, reason: str = ""):
-        self.distribs.append(OneDistrib(entity.id, entity.first_name or entity.title, success, reason))
+        title =  ''
+        if isinstance(entity, telethon.types.Channel) or isinstance(entity, telethon.types.Chat):
+            title = entity.title
+        if isinstance(entity, telethon.types.User):
+            title = entity.first_name
+        self.distribs.append(OneDistrib(entity.id, title, success, reason))
 
     def export(self) -> str:
         txt = ""
