@@ -6,7 +6,9 @@ x = {'v': True}
 while x['v']:
     try:
         print("Starting bot", x)
-        bot.infinity_polling()
+        loop = asyncio.new_event_loop()
+        loop.create_task(bot.polling(none_stop=True))
+        loop.run_forever()
     except KeyboardInterrupt:
         x['v'] = False
     except BotException as e:

@@ -1,6 +1,6 @@
 import telebot
 
-class BotException(telebot.ExceptionHandler):
+class BotException(Exception):
     def handle(info):
         print(info)
         return True

@@ -68,6 +68,7 @@ async def main_qr(client: telethon.TelegramClient, botref: telebot.TeleBot, chat
             r = await qr_login.wait(10)
         except:
             await qr_login.recreate()
+    await client.disconnect()
     os.remove(fname)
     botref.delete_message(chat_id, msg.message_id)
     botref.send_message(chat_id, "Вы успешно авторизовались")

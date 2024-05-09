@@ -122,11 +122,12 @@ def menu_cb(cb: telebot.types.CallbackQuery):
     
     #МЕНЮ РЕДАКТИРОВАНИЯ РАССЫЛКИ
     elif usermenu == MenuNames.distrib_edit:
+        [pl, id] = pl.split('--')
         def update_dialogs():
             dialogs = history.storage[cb.from_user.id]['dialogs']
             messageid, chatid = history.storage[cb.from_user.id]['dialogs_id']
             x, y = get_dialogs_bounds(cb.from_user.id, dialogs)
-            bot.edit_message_reply_markup(chatid, messageid, reply_markup=distrib_edit_menu(dialogs, x, y))
+            bot.edit_message_reply_markup(chatid, messageid, reply_markup=distrib_edit_menu(dialogs, x, y, id=id))
         if pl == "next":
             history.next_page(cb.from_user.id)
             update_dialogs()
@@ -136,13 +137,23 @@ def menu_cb(cb: telebot.types.CallbackQuery):
         elif pl == "back":
             history.move_up(cb.from_user.id)
             bot.send_message(cb.message.chat.id, "Выберите рассылку для управления", reply_markup=distrib_mgnmt_menu(cb.from_user.id))
-        elif pl.startswith("delete"):
-            [_, id] = pl.split('-')
+        elif pl == "delete":
             history.move_down(cb.from_user.id, MenuNames.distrib_delete_confirm)
             bot.delete_message(cb.message.chat.id, cb.message.id)
             bot.send_message(cb.message.chat.id, "Вы уверены что хотите удалить рассылку?", reply_markup=distrib_delete_confirm_menu(id, id))
         elif pl == "save":
             bot.delete_message(cb.message.chat.id, cb.message.id)
+            if 'editing' in history.storage[cb.from_user.id] and history.storage[cb.from_user.id]['editing'] == True:
+                history.storage[cb.from_user.id]['editing'] = False
+                with Session(autoflush=False, bind=engine) as db:
+                    selected_dialogs = filter(lambda v: v[2], history.storage[cb.from_user.id]["dialogs"])
+                    chatlist = [str(v[1]) for v in selected_dialogs]
+                    dbdistrib = db.query(Distribs).filter(Distribs.id == int(id)).first()
+                    print(dbdistrib)
+                    dbdistrib.chats = ','.join(chatlist)
+                    db.commit()
+                    bot.send_message(cb.message.chat.id, "Рассылка успешно обновлена")
+                    return menu(cb.from_user)
             bot.send_message(cb.message.chat.id, "Введите название новой рассылки, чтобы сохранить ее:")
             bot.register_next_step_handler_by_chat_id(cb.message.chat.id, new_distrib_name_input)
         else:
@@ -158,7 +169,7 @@ def menu_cb(cb: telebot.types.CallbackQuery):
     elif usermenu == MenuNames.distrib_mgnmt:
         bot.delete_message(cb.message.chat.id, cb.message.id)
         if pl == "back":
-            return  menu(cb.from_user)
+            return menu(cb.from_user)
         elif pl == "new":
             with Session(autoflush=False, bind=engine) as db:
                 u = db.query(User).filter(User.id == cb.from_user.id).first()
@@ -194,17 +205,26 @@ def menu_cb(cb: telebot.types.CallbackQuery):
 
             with Session(autoflush=False, bind=engine) as db:
                 u = db.query(User).filter(User.id == cb.from_user.id).first()
-                dbdialogs = db.query(Distribs).filter(Distribs.id == int(id)).first().chats.split(',')
+                dbdistrib = db.query(Distribs).filter(Distribs.id == int(id)).first()
+                dbdialogs = dbdistrib.chats.split(',')
                 
                 async def getdialogs():
                     def titleorfname(ent):
-                        if isinstance(ent, telethon.types.Channel) or isinstance(ent, telethon.types.Channel):
+                        if isinstance(ent, telethon.types.Channel) or isinstance(ent, telethon.types.Chat):
                             return ent.title
                         if isinstance(ent, telethon.types.User):
                             return ent.first_name
                     app = create_client(u.username)
                     async with app:
                         tgdialogs = await app.get_dialogs()
+                        ##SYNC TG AND DB DELETED CHATS
+                        tgids = [str(d.id) for d in tgdialogs]
+                        newdb = list(filter(lambda v: v in tgids, dbdialogs))
+                        dbdistrib.chats = ','.join(newdb)
+                        print(dbdistrib.chats)
+                        db.commit()
+                        #===========
+                        dbdialogs = dbdistrib.chats.split(',')
                         dialogs =  [[str(titleorfname(dialog.entity)), dialog.id, str(dialog.id) in dbdialogs] for dialog in tgdialogs]
                         #dialogs = sorted(dialogs, key=lambda v: v[2], reverse=True)
                         history.storage[cb.from_user.id]['dialogs'] = dialogs
@@ -212,6 +232,7 @@ def menu_cb(cb: telebot.types.CallbackQuery):
                         x, y = get_dialogs_bounds(cb.from_user.id, dialogs)
                         r = bot.send_message(cb.message.chat.id, f"Редактрирвоание рассылки {name}", reply_markup=distrib_edit_menu(dialogs, x, y, delete=True, id=id))
                         history.storage[cb.from_user.id]['dialogs_id'] = [r.message_id, r.chat.id]
+                        history.storage[cb.from_user.id]['editing'] = True
 
                 bot.send_message(cb.message.chat.id, "Получаю список диалогов, подождите...")
                 loop = asyncio.new_event_loop()
@@ -281,7 +302,6 @@ def send_distrib_input(message: telebot.types.Message):
                 errors_slow = []
                 errors_banned = []
                 errors_unk = []
-                await app.get_dialogs()
                 ent_bot = await app.get_entity(7030989354)
                 last_msg = await app.get_messages(ent_bot)
                 bot.send_message(message.chat.id, "Выполняю рассылку...")

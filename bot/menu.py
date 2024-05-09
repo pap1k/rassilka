@@ -82,13 +82,13 @@ def distrib_edit_menu(chatlist: list[list[str, int, bool]], x, y, delete = False
     mk = InlineKeyboardMarkup()
     for chat in chatlist[x:y]:
         status = "🟢" if chat[2] else "🔴"
-        mk.add(InlineKeyboardButton(status+" "+chat[0], callback_data=f"{MenuNames.distrib_mgnmt}:{chat[1]}"))
+        mk.add(InlineKeyboardButton(status+" "+chat[0], callback_data=f"{MenuNames.distrib_mgnmt}:{chat[1]}--{id}"))
     if y < len(chatlist):
-        mk.add(InlineKeyboardButton(">> Страница вперед", callback_data=f"{MenuNames.distrib_mgnmt}:next"))
+        mk.add(InlineKeyboardButton(">> Страница вперед", callback_data=f"{MenuNames.distrib_mgnmt}:next--{id}"))
     if x != 0:
-        mk.add(InlineKeyboardButton("<< Страница назад", callback_data=f"{MenuNames.distrib_mgnmt}:prev"))
-    mk.add(InlineKeyboardButton("Сохранить", callback_data=f"{MenuNames.distrib_mgnmt}:save"))
+        mk.add(InlineKeyboardButton("<< Страница назад", callback_data=f"{MenuNames.distrib_mgnmt}:prev--{id}"))
+    mk.add(InlineKeyboardButton("Сохранить", callback_data=f"{MenuNames.distrib_mgnmt}:save--{id}"))
     if delete:
-        mk.add(InlineKeyboardButton("Удалить", callback_data=f"{MenuNames.distrib_mgnmt}:delete-{id}"))
-    mk.add(InlineKeyboardButton("< Управления рассылками", callback_data=f"{MenuNames.distrib_mgnmt}:back"))
+        mk.add(InlineKeyboardButton("Удалить", callback_data=f"{MenuNames.distrib_mgnmt}:delete--{id}"))
+    mk.add(InlineKeyboardButton("< Управления рассылками", callback_data=f"{MenuNames.distrib_mgnmt}:back--{id}"))
     return mk
