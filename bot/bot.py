@@ -224,8 +224,8 @@ def menu_cb(cb: telebot.types.CallbackQuery):
                         print(dbdistrib.chats)
                         db.commit()
                         #===========
-                        dbdialogs = dbdistrib.chats.split(',')
-                        dialogs =  [[str(titleorfname(dialog.entity)), dialog.id, str(dialog.id) in dbdialogs] for dialog in tgdialogs]
+                        newdbdialogs = dbdistrib.chats.split(',')
+                        dialogs =  [[str(titleorfname(dialog.entity)), dialog.id, str(dialog.id) in newdbdialogs] for dialog in tgdialogs]
                         #dialogs = sorted(dialogs, key=lambda v: v[2], reverse=True)
                         history.storage[cb.from_user.id]['dialogs'] = dialogs
                         history.move_down(cb.from_user.id, MenuNames.distrib_edit)
