@@ -9,10 +9,12 @@ from orm.db import engine
 from bot.history import HistoryController
 from bot.menu import start_menu, MenuNames, user_mgnmt_menu, user_delete_confirm_menu, distrib_mgnmt_menu, distrib_edit_menu, distrib_send_menu, distrib_delete_confirm_menu, admin_menu
 from bot.exceptions import BotException
+from bot.lastdistrib import LastDistrib
 
 bot = telebot.TeleBot(config.BOT_TOKEN, exception_handler=BotException)
 
 history = HistoryController()
+lastdist = LastDistrib()
 
 def get_dialogs_bounds(user_id, dialogs: list):
     page = history.get_page_n(user_id)
@@ -50,6 +52,12 @@ def menu(user: telebot.types.User):
 @bot.message_handler(["start", "menu"])
 def start(message: telebot.types.Message):
     menu(message.from_user)
+
+@bot.message_handler(["last"])
+def get_last(message: telebot.types.Message):
+    fname = lastdist.export()
+    data = open(fname, "rb").read()
+    bot.send_document(message.chat.id, data, visible_file_name="Last_Distribution.txt")
 
 @bot.message_handler(["raise"])
 def error(message: telebot.types.Message):
@@ -299,9 +307,11 @@ def send_distrib_input(message: telebot.types.Message):
             #in_memory=True, session_string=u.session_string
             app = create_client(u.username)
             async with app:
+                lastdist.clear()
                 errors_slow = []
                 errors_banned = []
                 errors_unk = []
+                total = 0
                 ent_bot = await app.get_entity(7030989354)
                 last_msg = await app.get_messages(ent_bot)
                 bot.send_message(message.chat.id, "Выполняю рассылку...")
@@ -309,16 +319,21 @@ def send_distrib_input(message: telebot.types.Message):
                     ent = await app.get_entity(int(chatid))
                     try:
                         await app.forward_messages(ent, last_msg, drop_author=True)
+                        total += 1
+                        lastdist.add(ent, True)
                         #await app.send_message(ent, message.text)
                     except telethon.errors.rpcerrorlist.SlowModeWaitError:
                         errors_slow.append(chatid)
+                        lastdist.add(ent, False, "SlowMode")
                     except telethon.errors.rpcerrorlist.ChannelPrivateError:
+                        lastdist.add(ent, False, "Banned/No rights")
                         errors_banned.append(chatid)
                     except Exception as e:
                         print(e)
+                        lastdist.add(ent, False, "Unkown")
                         errors_unk.append(chatid)
                     await asyncio.sleep(1/80)
-                bot.send_message(message.chat.id, "Рассылка выполнена успешно")
+                bot.send_message(message.chat.id, f"Рассылка выполнена успешно. Сообщение успешно доставлено {total} раз")
                 if len(errors_banned) + len(errors_slow) + len(errors_unk) > 0:
                     bot.send_message(message.chat.id, f"Есть ошибки. Всего: {len(errors_banned) + len(errors_slow) + len(errors_unk)}\n{len(errors_slow)} столько чатов со слоу модом \n{len(errors_banned)} Столько чатов бан/приватные\n{len(errors_unk)} Столько неопознанных ошибок")
 
