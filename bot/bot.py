@@ -4,12 +4,12 @@ import config, telebot, asyncio
 from orm.models import User, Distribs
 from sqlalchemy.orm import Session
 
-from user.user import auth_qr, create_client
+from user.user import auth_qr, create_client, auth_tel
 from orm.db import engine
 from bot.history import HistoryController
 from bot.menu import start_menu, MenuNames, user_mgnmt_menu, user_delete_confirm_menu, distrib_mgnmt_menu, distrib_edit_menu, distrib_send_menu, distrib_delete_confirm_menu, admin_menu
 
-bot = telebot.TeleBot(config.BOT_TOKEN)
+from bot.botfile import bot
 
 history = HistoryController()
 
@@ -38,7 +38,7 @@ def menu(user: telebot.types.User):
                         bot.send_message(user.id, "Выберите пункт меню:", reply_markup=start_menu(is_admin))
                     else:
                         await client.disconnect()
-                        bot.send_message(user.id, "Вы не авторизованы. Войдите в приложение с помощью /auth")
+                        bot.send_message(user.id, "Вы не авторизованы. Войдите в приложение с помощью /auth или /authqr")
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 loop.run_until_complete(check_auth())
@@ -63,7 +63,7 @@ def get_sticker(message: telebot.types.Message):
 def cancel(message: telebot.types.Message):
     menu(message.from_user)
 
-@bot.message_handler(["auth"])
+@bot.message_handler(["authqr"])
 def auth(message: telebot.types.Message):
     with Session(autoflush=False, bind=engine) as db:
         user = db.query(User).filter(User.id == message.from_user.id).first()
@@ -71,7 +71,18 @@ def auth(message: telebot.types.Message):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(auth_qr(user.username, bot, message.chat.id))
-            
+
+@bot.message_handler(["auth"])
+def auth(message: telebot.types.Message):
+    def tel_inp(message: telebot.types.Message):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(auth_tel(user.username, bot, message.chat.id, message.text))
+    with Session(autoflush=False, bind=engine) as db:
+        user = db.query(User).filter(User.id == message.from_user.id).first()
+        if user:
+            bot.reply_to(message, "Введите номер телефона без проблеов, в формате\n+[код_страны][номер]")
+            bot.register_next_step_handler_by_chat_id(message.chat.id, tel_inp)
 
 @bot.callback_query_handler(lambda x: True)
 def menu_cb(cb: telebot.types.CallbackQuery):
@@ -189,7 +200,8 @@ def menu_cb(cb: telebot.types.CallbackQuery):
                     app = create_client(u.username)
                     async with app:
                         tgdialogs = await app.get_dialogs()
-                        dialogs =  [[str(titleorfname(dialog.entity)), dialog.id, dialog.id in dbdialogs] for dialog in tgdialogs]
+                        dialogs =  [[str(titleorfname(dialog.entity)), dialog.id, str(dialog.id) in dbdialogs] for dialog in tgdialogs]
+                        #dialogs = sorted(dialogs, key=lambda v: v[2], reverse=True)
                         history.storage[cb.from_user.id]['dialogs'] = dialogs
                         history.move_down(cb.from_user.id, MenuNames.distrib_edit)
                         x, y = get_dialogs_bounds(cb.from_user.id, dialogs)
