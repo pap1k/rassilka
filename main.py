@@ -1,11 +1,19 @@
 import asyncio
-from bot.botfile import bot, create_bot
+from bot.bot import bot
+from bot.exceptions import BotException
 
-while True:
+x = {'v': True}
+while x['v']:
     try:
-        create_bot()
-        bot.infinity_polling(none_stop=True)
-    except:
-        create_bot()
+        print("Starting bot", x)
+        bot.infinity_polling()
+    except KeyboardInterrupt:
+        x['v'] = False
+    except BotException as e:
+        print(e)
         print("reboot")
+    except Exception as e:
+        print(e)
+        print("Base excetion, dead")
+        x['v'] = False
 # auth_qr()

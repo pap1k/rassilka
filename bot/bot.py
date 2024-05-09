@@ -8,8 +8,9 @@ from user.user import auth_qr, create_client, auth_tel
 from orm.db import engine
 from bot.history import HistoryController
 from bot.menu import start_menu, MenuNames, user_mgnmt_menu, user_delete_confirm_menu, distrib_mgnmt_menu, distrib_edit_menu, distrib_send_menu, distrib_delete_confirm_menu, admin_menu
+from bot.exceptions import BotException
 
-from bot.botfile import bot
+bot = telebot.TeleBot(config.BOT_TOKEN, exception_handler=BotException)
 
 history = HistoryController()
 
@@ -45,10 +46,14 @@ def menu(user: telebot.types.User):
     else:
         history.init_user(user.id)
         bot.send_message(user.id, "Выберите пункт админ-меню:", reply_markup=admin_menu())
-    
+
 @bot.message_handler(["start", "menu"])
 def start(message: telebot.types.Message):
     menu(message.from_user)
+
+@bot.message_handler(["raise"])
+def error(message: telebot.types.Message):
+    raise Exception
 
 @bot.message_handler(["sticker"])
 def sticker(message: telebot.types.Message):
