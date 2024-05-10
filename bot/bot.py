@@ -318,6 +318,7 @@ def send_distrib_input(message: telebot.types.Message):
                 for chatid in history.storage[message.from_user.id]['chats'].split(','):
                     ent = await app.get_entity(int(chatid))
                     try:
+                        print("sending to", chatid)
                         await app.forward_messages(ent, last_msg, drop_author=True)
                         total += 1
                         lastdist.add(ent, True)
@@ -333,6 +334,7 @@ def send_distrib_input(message: telebot.types.Message):
                         lastdist.add(ent, False, "Unkown")
                         errors_unk.append(chatid)
                     await asyncio.sleep(1/80)
+                print("sending ends")
                 bot.send_message(message.chat.id, f"Рассылка выполнена успешно. Сообщение успешно доставлено {total} раз")
                 if len(errors_banned) + len(errors_slow) + len(errors_unk) > 0:
                     bot.send_message(message.chat.id, f"Есть ошибки. Всего: {len(errors_banned) + len(errors_slow) + len(errors_unk)}\n{len(errors_slow)} столько чатов со слоу модом \n{len(errors_banned)} Столько чатов бан/приватные\n{len(errors_unk)} Столько неопознанных ошибок")
