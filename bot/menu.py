@@ -87,6 +87,7 @@ def distrib_edit_menu(chatlist: list[list[str, int, bool]], x, y, delete = False
         mk.add(InlineKeyboardButton(">> Страница вперед", callback_data=f"{MenuNames.distrib_mgnmt}:next--{id}"))
     if x != 0:
         mk.add(InlineKeyboardButton("<< Страница назад", callback_data=f"{MenuNames.distrib_mgnmt}:prev--{id}"))
+    mk.add(InlineKeyboardButton("👌 Выбрать все", callback_data=f"{MenuNames.distrib_mgnmt}:all--{id}"))
     mk.add(InlineKeyboardButton("Сохранить", callback_data=f"{MenuNames.distrib_mgnmt}:save--{id}"))
     if delete:
         mk.add(InlineKeyboardButton("Удалить", callback_data=f"{MenuNames.distrib_mgnmt}:delete--{id}"))

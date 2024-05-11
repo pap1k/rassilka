@@ -145,6 +145,11 @@ def menu_cb(cb: telebot.types.CallbackQuery):
         elif pl == "back":
             history.move_up(cb.from_user.id)
             bot.send_message(cb.message.chat.id, "Выберите рассылку для управления", reply_markup=distrib_mgnmt_menu(cb.from_user.id))
+        elif pl == "all":
+            d = history.storage[cb.from_user.id]['dialogs']
+            for dialog in d:
+                dialog[2] = True
+            update_dialogs()
         elif pl == "delete":
             history.move_down(cb.from_user.id, MenuNames.distrib_delete_confirm)
             bot.delete_message(cb.message.chat.id, cb.message.id)
