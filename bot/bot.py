@@ -330,7 +330,7 @@ def send_distrib_input(message: telebot.types.Message):
                         lastdist.add(ent, False, "Banned/No rights")
                         errors_banned.append(chatid)
                     except Exception as e:
-                        print(e)
+                        print("BASE", e)
                         lastdist.add(ent, False, "Unkown")
                         errors_unk.append(chatid)
                     await asyncio.sleep(1/80)
