@@ -3,6 +3,7 @@ import telethon
 import config, telebot, asyncio
 from orm.models import User, Distribs
 from sqlalchemy.orm import Session
+from sqlalchemy import delete
 
 from user.user import auth_qr, create_client, auth_tel
 from orm.db import engine
@@ -125,6 +126,7 @@ def menu_cb(cb: telebot.types.CallbackQuery):
             with Session(autoflush=False, bind=engine) as db:
                 distr = db.query(Distribs).filter(Distribs.id == int(pl)).first()
                 history.storage[cb.from_user.id]['chats'] = distr.chats
+                history.storage[cb.from_user.id]['distribid'] = int(pl)
                 bot.send_message(cb.message.chat.id, "Введите текст рассылки или перешлите сообщение\n/cancel для отмены.")
                 bot.register_next_step_handler_by_chat_id(cb.message.chat.id, send_distrib_input)
     
@@ -313,9 +315,10 @@ def send_distrib_input(message: telebot.types.Message):
             app = create_client(u.username)
             async with app:
                 lastdist.clear()
-                errors_slow = []
-                errors_banned = []
-                errors_unk = []
+                todelete = []
+                errors_slow = 0
+                errors_banned = 0
+                errors_unk = 0
                 total = 0
                 ent_bot = await app.get_entity(7030989354)
                 last_msg = await app.get_messages(ent_bot)
@@ -329,20 +332,32 @@ def send_distrib_input(message: telebot.types.Message):
                         lastdist.add(ent, True)
                         #await app.send_message(ent, message.text)
                     except telethon.errors.rpcerrorlist.SlowModeWaitError:
-                        errors_slow.append(chatid)
+                        errors_slow += 1
+                        #todelete.append(chatid)
                         lastdist.add(ent, False, "SlowMode")
                     except telethon.errors.rpcerrorlist.ChannelPrivateError:
                         lastdist.add(ent, False, "Banned/No rights")
-                        errors_banned.append(chatid)
+                        errors_banned += 1
+                        todelete.append(chatid)
                     except Exception as e:
                         print("BASE", e)
                         lastdist.add(ent, False, "Unkown")
-                        errors_unk.append(chatid)
+                        todelete.append(chatid)
+                        errors_unk += 1
                     await asyncio.sleep(1/80)
                 print("sending ends")
-                bot.send_message(message.chat.id, f"Рассылка выполнена успешно. Сообщение успешно доставлено {total} раз")
-                if len(errors_banned) + len(errors_slow) + len(errors_unk) > 0:
-                    bot.send_message(message.chat.id, f"Есть ошибки. Всего: {len(errors_banned) + len(errors_slow) + len(errors_unk)}\n{len(errors_slow)} столько чатов со слоу модом \n{len(errors_banned)} Столько чатов бан/приватные\n{len(errors_unk)} Столько неопознанных ошибок")
+                bot.send_message(message.chat.id, f"Рассылка выполнена. Сообщение успешно доставлено {total} раз")
+                if errors_banned + errors_slow + errors_unk > 0:
+                    txt = f"Есть ошибки. Всего: {errors_banned + errors_slow + errors_unk}\n{errors_slow} столько чатов со слоу модом \n{errors_banned} Столько чатов бан/приватные\n{errors_unk} Столько неопознанных ошибок."
+
+                    newids = history.storage[message.from_user.id]['chats'].split(',')
+                    newids = list(filter(lambda x: x not in todelete), newids)
+                    dbdistrib = db.query(Distribs).filter(Distribs.id == history.storage[message.from_user.id]['distribid']).first()
+                    if dbdistrib:
+                        dbdistrib.chats = ','.join(newids)
+                        db.commit()
+                        txt += f"Из рассылки атоматически удалены столько чатов - {len(todelete)}"
+                    bot.send_message(message.chat.id, txt)
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
