@@ -324,8 +324,8 @@ def send_distrib_input(message: telebot.types.Message):
                 last_msg = await app.get_messages(ent_bot)
                 bot.send_message(message.chat.id, "Выполняю рассылку...")
                 for chatid in history.storage[message.from_user.id]['chats'].split(','):
-                    ent = await app.get_entity(int(chatid))
                     try:
+                        ent = await app.get_entity(int(chatid))
                         print("sending to", chatid)
                         await app.forward_messages(ent, last_msg, drop_author=True)
                         total += 1
@@ -339,19 +339,22 @@ def send_distrib_input(message: telebot.types.Message):
                         lastdist.add(ent, False, "Banned/No rights")
                         errors_banned += 1
                         todelete.append(chatid)
+                    except telethon.errors.UserBannedInChannelError:
+                        lastdist.add(ent, False, "You're banned from sending messages in supergroups/channels")
+                        errors_banned += 1
                     except Exception as e:
                         print("BASE", e)
                         lastdist.add(ent, False, "Unkown")
                         todelete.append(chatid)
                         errors_unk += 1
-                    await asyncio.sleep(1/80)
+                    await asyncio.sleep(config.SEND_DELAY)
                 print("sending ends")
                 bot.send_message(message.chat.id, f"Рассылка выполнена. Сообщение успешно доставлено {total} раз")
                 if errors_banned + errors_slow + errors_unk > 0:
                     txt = f"Есть ошибки. Всего: {errors_banned + errors_slow + errors_unk}\n{errors_slow} столько чатов со слоу модом \n{errors_banned} Столько чатов бан/приватные\n{errors_unk} Столько неопознанных ошибок."
 
                     newids = history.storage[message.from_user.id]['chats'].split(',')
-                    newids = list(filter(lambda x: x not in todelete), newids)
+                    newids = list(filter(lambda x: x not in todelete, newids))
                     dbdistrib = db.query(Distribs).filter(Distribs.id == history.storage[message.from_user.id]['distribid']).first()
                     if dbdistrib:
                         dbdistrib.chats = ','.join(newids)
