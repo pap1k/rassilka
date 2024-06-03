@@ -12,6 +12,7 @@ class MenuNames:
     distrib_mgnmt = "distribs"
     distrib_edit = "distrib_edit"
     distrib_send_menu = "distrib_send_menu"
+    distrib_auto_edit = "distrib_auto_edit"
 
 def start_menu(is_admin: bool) -> InlineKeyboardMarkup:
     mk = InlineKeyboardMarkup()
@@ -88,8 +89,19 @@ def distrib_edit_menu(chatlist: list[list[str, int, bool]], x, y, delete = False
     if x != 0:
         mk.add(InlineKeyboardButton("<< Страница назад", callback_data=f"{MenuNames.distrib_mgnmt}:prev--{id}"))
     mk.add(InlineKeyboardButton("👌 Выбрать все", callback_data=f"{MenuNames.distrib_mgnmt}:all--{id}"))
+    mk.add(InlineKeyboardButton("Авто рассылка", callback_data=f"{MenuNames.distrib_mgnmt}:auto--{id}"))
     mk.add(InlineKeyboardButton("Сохранить", callback_data=f"{MenuNames.distrib_mgnmt}:save--{id}"))
     if delete:
         mk.add(InlineKeyboardButton("Удалить", callback_data=f"{MenuNames.distrib_mgnmt}:delete--{id}"))
     mk.add(InlineKeyboardButton("< Управления рассылками", callback_data=f"{MenuNames.distrib_mgnmt}:back--{id}"))
+    return mk
+
+def distrib_auto_edit_menu(selected) -> InlineKeyboardMarkup:
+    mk = InlineKeyboardMarkup()
+    mk.add(InlineKeyboardButton(f"{('✅ ' if selected == '30m' else '')}Каждые 30 минут", callback_data=f"{MenuNames.distrib_auto_edit}:30m"))
+    mk.add(InlineKeyboardButton(f"{('✅ ' if selected == '40m' else '')}Каждые 40 минут", callback_data=f"{MenuNames.distrib_auto_edit}:40m"))
+    mk.add(InlineKeyboardButton(f"{('✅ ' if selected == '50m' else '')}Каждые 50 минут", callback_data=f"{MenuNames.distrib_auto_edit}:50m"))
+    mk.add(InlineKeyboardButton(f"{('✅ ' if selected == '1h' else '')}Каждый час", callback_data=f"{MenuNames.distrib_auto_edit}:1h"))
+    mk.add(InlineKeyboardButton(f"Отменить", callback_data=f"{MenuNames.distrib_auto_edit}:no"))
+    mk.add(InlineKeyboardButton(f"ОК", callback_data=f"{MenuNames.distrib_auto_edit}:ok"))
     return mk

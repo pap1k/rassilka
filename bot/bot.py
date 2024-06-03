@@ -8,7 +8,7 @@ from sqlalchemy import delete
 from user.user import auth_qr, create_client, auth_tel
 from orm.db import engine
 from bot.history import HistoryController
-from bot.menu import start_menu, MenuNames, user_mgnmt_menu, user_delete_confirm_menu, distrib_mgnmt_menu, distrib_edit_menu, distrib_send_menu, distrib_delete_confirm_menu, admin_menu
+from bot.menu import start_menu, MenuNames, user_mgnmt_menu, user_delete_confirm_menu, distrib_mgnmt_menu, distrib_edit_menu, distrib_send_menu, distrib_delete_confirm_menu, admin_menu, distrib_auto_edit_menu
 from bot.exceptions import BotException
 from bot.lastdistrib import LastDistrib
 
@@ -16,6 +16,18 @@ bot = telebot.TeleBot(config.BOT_TOKEN, exception_handler=BotException)
 
 history = HistoryController()
 lastdist = LastDistrib()
+
+def transform_time_to_sec(time, reverse=False):
+    trans = {
+        '30m': 1800,
+        '40m': 2400,
+        '50m': 3000,
+        '1h':  3600,
+    }
+    for k, v in trans.items():
+        if k == time or v == time:
+            return k if reverse else v
+    return 'no'
 
 def get_dialogs_bounds(user_id, dialogs: list):
     page = history.get_page_n(user_id)
@@ -104,6 +116,7 @@ def menu_cb(cb: telebot.types.CallbackQuery):
     [_, pl] = cb.data.split(':')
     bot.answer_callback_query(cb.id)
     print(history.history[cb.from_user.id])
+
     #ГЛАВНОЕ МЕНЮ
     if usermenu == MenuNames.main:
         bot.delete_message(cb.message.chat.id, cb.message.id)
@@ -156,6 +169,15 @@ def menu_cb(cb: telebot.types.CallbackQuery):
             history.move_down(cb.from_user.id, MenuNames.distrib_delete_confirm)
             bot.delete_message(cb.message.chat.id, cb.message.id)
             bot.send_message(cb.message.chat.id, "Вы уверены что хотите удалить рассылку?", reply_markup=distrib_delete_confirm_menu(id, id))
+        elif pl == "auto":
+            history.move_down(cb.from_user.id, MenuNames.distrib_auto_edit)
+            bot.delete_message(cb.message.chat.id, cb.message.id)
+            history.storage[cb.from_user.id]['auto_id'] = id
+            with Session(autoflush=False, bind=engine) as db:
+                db_data = db.query(Distribs).filter(Distribs.id == id).first()
+                selected = transform_time_to_sec(db_data.auto_period, True)
+                history.storage[cb.from_user.id]['auto_period'] = selected
+                bot.send_message(cb.message.chat.id, "Настройки авто рассылки", reply_markup=distrib_auto_edit_menu(selected))
         elif pl == "save":
             bot.delete_message(cb.message.chat.id, cb.message.id)
             if 'editing' in history.storage[cb.from_user.id] and history.storage[cb.from_user.id]['editing'] == True:
@@ -180,6 +202,24 @@ def menu_cb(cb: telebot.types.CallbackQuery):
                     break
             update_dialogs()
     
+    #МЕНЮ НАТСРОЙКИ АВТО ОТПРАВКИ
+    elif usermenu == MenuNames.distrib_auto_edit:
+        if pl == "ok":
+            bot.delete_message(cb.message.chat.id, cb.message.id)
+            bot.send_message(cb.message.chat.id, "Введите текст авто рассылки. Не удаляйте сообщение с текстом в будущем.")
+            bot.register_next_step_handler_by_chat_id(cb.message.chat.id, save_autodistrib_message_id)
+        elif pl == "no":
+            bot.delete_message(cb.message.chat.id, cb.message.id)
+            with Session(autoflush=False, bind=engine) as db:
+                d = db.query(Distribs).filter(Distribs.id == history.storage[cb.from_user.id]['auto_id']).first()
+                d.auto_period = 0
+                d.auto_message_id = 0
+                db.commit()
+                menu(cb.from_user)
+        else:
+            history.storage[cb.from_user.id]['auto_period'] = pl
+            bot.edit_message_reply_markup(cb.message.chat.id, cb.message.id, reply_markup=distrib_auto_edit_menu(pl))
+
     #МЕНЮ УПРАВЛЕНИЯ РАССЫЛКАМИ
     elif usermenu == MenuNames.distrib_mgnmt:
         bot.delete_message(cb.message.chat.id, cb.message.id)
@@ -303,7 +343,16 @@ def menu_cb(cb: telebot.types.CallbackQuery):
                 db.commit()
                 bot.send_message(cb.message.chat.id, "Пользователь удален")
         bot.send_message(cb.message.chat.id, "Нажмите на пользователя чтобы удалить", reply_markup=user_mgnmt_menu(history.get_page_n(cb.from_user.id)))
-    
+
+def save_autodistrib_message_id(message: telebot.types.Message):
+    st = history.storage[message.from_user.id]
+    with Session(autoflush=False, bind=engine) as db:
+        distr = db.query(Distribs).filter(Distribs.id == st['auto_id']).first()
+        distr.auto_period = transform_time_to_sec(st['auto_period'])
+        distr.auto_message_id = message.id
+        db.commit()
+    menu(message.from_user)
+
 def send_distrib_input(message: telebot.types.Message):
     if message.text.startswith('/cancel'):
         return menu(message.from_user)

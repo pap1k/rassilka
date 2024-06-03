@@ -20,5 +20,7 @@ class Distribs(Base):
     name = Column(String)
     belong_to = Column(Integer)
     chats = Column(String, default="")
+    auto_period = Column(Integer, default=0)
+    auto_message_id = Column(Integer, default=0)
 
 Base.metadata.create_all(bind=engine)
