@@ -18,4 +18,3 @@ while x['v']:
         print(e)
         print("Base excetion, dead")
         x['v'] = False
-# auth_qr()
