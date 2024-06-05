@@ -3,7 +3,7 @@ from bot.bot import bot
 from bot.exceptions import BotException
 
 if '-test' in sys.argv:
-    bot.polling(none_stop=True)
+    bot.infinity_polling()
     quit()
 
 x = {'v': True}
