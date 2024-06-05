@@ -365,7 +365,7 @@ def save_autodistrib_message_id(message: telebot.types.Message):
                 last_msg = await app.get_messages(ent_bot)
                 distr = db.query(Distribs).filter(Distribs.id == st['auto_id']).first()
                 distr.auto_period = transform_time_to_sec(st['auto_period'])
-                distr.auto_message_id = last_msg.id
+                distr.auto_message_id = last_msg[0].id
                 db.commit()
                 bot.edit_message_text("Сохранено", msg.chat.id, msg.id)
 
