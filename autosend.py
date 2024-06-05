@@ -1,8 +1,11 @@
-import telethon, time, json, asyncio
+import telethon, time, json, asyncio, telebot, config
 from orm.models import User, Distribs
 from sqlalchemy.orm import Session
 from orm.db import engine
 from user.user import create_client
+
+
+bot = telebot.TeleBot(config.BOT_TOKEN)
 
 async def auto_task():
     sent = {}
@@ -31,7 +34,7 @@ async def auto_task():
                     errors_banned = 0
                     errors_unk = 0
                     total = 0
-                    #bot.send_message(distrib.belong_to, f"Выполняю авто рассылку {distrib.name}...")
+                    bot.send_message(distrib.belong_to, f"Выполняю авто рассылку {distrib.name}...")
                     chatent = await app.get_entity(distrib.belong_to)
                     for chatid in distrib.chats.split(','):
                         ent = await app.get_entity(int(chatid))
@@ -52,7 +55,7 @@ async def auto_task():
                         await asyncio.sleep(1/80)
                     print("sending ends")
                     sent[str(distrib.id)] = time.time()
-                    #bot.send_message(distrib.belong_to, f"Рассылка выполнена. Сообщение успешно доставлено {total} раз")
+                    bot.send_message(distrib.belong_to, f"Рассылка выполнена. Сообщение успешно доставлено {total} раз")
                     if errors_banned + errors_slow + errors_unk > 0:
                         txt = f"Есть ошибки. Всего: {errors_banned + errors_slow + errors_unk}\n{errors_slow} столько чатов со слоу модом \n{errors_banned} Столько чатов бан/приватные\n{errors_unk} Столько неопознанных ошибок."
 
@@ -61,9 +64,11 @@ async def auto_task():
                         distrib.chats = ','.join(newids)
                         db.commit()
                         txt += f"Из рассылки атоматически удалены столько чатов - {len(todelete)}"
-                        #bot.send_message(distrib.belong_to, txt)
+                        bot.send_message(distrib.belong_to, txt)
         print("[AUTO] All checked")
         open("sent_data.txt", 'w').write(json.dumps(sent))
         await asyncio.sleep(3*60)
 
-asyncio.run(auto_task())
+loop = asyncio.new_event_loop()
+loop.create_task(auto_task())
+loop.run_forever()
