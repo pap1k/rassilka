@@ -1,6 +1,6 @@
 import telebot
 import telethon
-import config, telebot, asyncio
+import config, telebot, asyncio, traceback
 from orm.models import User, Distribs
 from sqlalchemy.orm import Session
 from sqlalchemy import delete
@@ -37,30 +37,33 @@ def get_dialogs_bounds(user_id, dialogs: list):
     return [(page-1)*10, page*10]
 
 def menu(user: telebot.types.User):
-    is_admin = user.id in config.admin_id
-    if not is_admin:
-        with Session(autoflush=False, bind=engine) as db:
-            dbuser = db.query(User).filter(User.id == user.id).first()
-            if not dbuser:
-                print("Попытка доступа незарегистрированного пользователя", user.id)
-                return
-            else:
-                async def check_auth():
-                    client = create_client(dbuser.username)
-                    await client.connect()
-                    if await client.is_user_authorized():
-                        history.init_user(user.id)
-                        await client.disconnect()
-                        bot.send_message(user.id, "Выберите пункт меню:", reply_markup=start_menu(is_admin))
-                    else:
-                        await client.disconnect()
-                        bot.send_message(user.id, "Вы не авторизованы. Войдите в приложение с помощью /auth или /authqr")
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(check_auth())
-    else:
-        history.init_user(user.id)
-        bot.send_message(user.id, "Выберите пункт админ-меню:", reply_markup=admin_menu())
+    try:
+        is_admin = user.id in config.admin_id
+        if not is_admin:
+            with Session(autoflush=False, bind=engine) as db:
+                dbuser = db.query(User).filter(User.id == user.id).first()
+                if not dbuser:
+                    print("Попытка доступа незарегистрированного пользователя", user.id)
+                    return
+                else:
+                    async def check_auth():
+                        client = create_client(dbuser.username)
+                        await client.connect()
+                        if await client.is_user_authorized():
+                            history.init_user(user.id)
+                            await client.disconnect()
+                            bot.send_message(user.id, "Выберите пункт меню:", reply_markup=start_menu(is_admin))
+                        else:
+                            await client.disconnect()
+                            bot.send_message(user.id, "Вы не авторизованы. Войдите в приложение с помощью /auth или /authqr")
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(check_auth())
+        else:
+            history.init_user(user.id)
+            bot.send_message(user.id, "Выберите пункт админ-меню:", reply_markup=admin_menu())
+    except Exception:
+        print(traceback.format_exc())
 
 @bot.message_handler(["start", "menu"])
 def start(message: telebot.types.Message):
