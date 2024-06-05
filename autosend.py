@@ -57,7 +57,7 @@ async def auto_task():
                         txt = f"Есть ошибки. Всего: {errors_banned + errors_slow + errors_unk}\n{errors_slow} столько чатов со слоу модом \n{errors_banned} Столько чатов бан/приватные\n{errors_unk} Столько неопознанных ошибок."
 
                         newids = distrib.chats.split(',')
-                        newids = list(filter(lambda x: x not in todelete), newids)
+                        newids = list(filter(lambda x: x not in todelete, newids))
                         distrib.chats = ','.join(newids)
                         db.commit()
                         txt += f"Из рассылки атоматически удалены столько чатов - {len(todelete)}"
