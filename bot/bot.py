@@ -65,6 +65,12 @@ def menu(user: telebot.types.User):
     except Exception:
         print(traceback.format_exc())
 
+@bot.message_handler(["test"])
+def start(message: telebot.types.Message):
+     with Session(autoflush=False, bind=engine) as db:
+        dbuser = db.query(User).filter(User.id == message.from_user.id).first()
+        print(dbuser)
+
 @bot.message_handler(["start", "menu"])
 def start(message: telebot.types.Message):
     menu(message.from_user)
