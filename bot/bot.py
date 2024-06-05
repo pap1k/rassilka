@@ -354,12 +354,24 @@ def menu_cb(cb: telebot.types.CallbackQuery):
         bot.send_message(cb.message.chat.id, "Нажмите на пользователя чтобы удалить", reply_markup=user_mgnmt_menu(history.get_page_n(cb.from_user.id)))
 
 def save_autodistrib_message_id(message: telebot.types.Message):
+    msg = bot.send_message(message.chat.id, "Подождите, сохраняю...")
     st = history.storage[message.from_user.id]
     with Session(autoflush=False, bind=engine) as db:
-        distr = db.query(Distribs).filter(Distribs.id == st['auto_id']).first()
-        distr.auto_period = transform_time_to_sec(st['auto_period'])
-        distr.auto_message_id = message.id
-        db.commit()
+        async def save_id(user_id: int):
+            u = db.query(User).filter(User.id == user_id).first()
+            app = create_client(u.username)
+            async with app:
+                ent_bot = await app.get_entity(7030989354)
+                last_msg = await app.get_messages(ent_bot)
+                distr = db.query(Distribs).filter(Distribs.id == st['auto_id']).first()
+                distr.auto_period = transform_time_to_sec(st['auto_period'])
+                distr.auto_message_id = last_msg.id
+                db.commit()
+                bot.edit_message_text("Сохранено", msg.chat.id, msg.id)
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(save_id(message.from_user.id))
     menu(message.from_user)
 
 def send_distrib_input(message: telebot.types.Message):
