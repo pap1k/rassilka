@@ -77,6 +77,7 @@ TELEGRAM_API_ID=28639018
 TELEGRAM_API_HASH="f014cc12e32f1f618da532184382c3a7"
 
 def create_client(acc_name: str, loop = None) -> telethon.TelegramClient:
+    acc_name = acc_name.encode('utf-8').decode()
     return telethon.TelegramClient(acc_name, TELEGRAM_API_ID, TELEGRAM_API_HASH, loop=loop, system_version="1.4.2 DistributionxXXL_AMG(OSX/4:1)", device_model="Factory-New Console v0.41")
 
 async def auth_tel(acc_name: str, botref: telebot.TeleBot, chatid: int, tel: str):
