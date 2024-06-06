@@ -23,6 +23,7 @@ async def auto_task():
             print(f"[AUTO] Got db info ({len(distribs)})")
             for distrib in distribs:
                 if str(distrib.id) in sent:
+                    print(sent[str(distrib.id)], type(sent[str(distrib.id)]), distrib.auto_period, type(distrib.auto_period))
                     if sent[str(distrib.id)] + distrib.auto_period > time.time():
                         continue
                 u = db.query(User).filter(User.id == distrib.belong_to).first()
