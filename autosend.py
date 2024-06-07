@@ -24,8 +24,10 @@ async def auto_task():
             for distrib in distribs:
                 if str(distrib.id) in sent:
                     print(sent[str(distrib.id)], type(sent[str(distrib.id)]), distrib.auto_period, type(distrib.auto_period))
-                    if sent[str(distrib.id)] + distrib.auto_period > time.time():
+                    if float(sent[str(distrib.id)]) + float(distrib.auto_period) > time.time():
+                        print("Skip")
                         continue
+                    print("Do")
                 u = db.query(User).filter(User.id == distrib.belong_to).first()
 
                 app = create_client(u.username)
