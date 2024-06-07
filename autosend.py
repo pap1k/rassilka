@@ -40,8 +40,8 @@ async def auto_task():
                     bot.send_message(distrib.belong_to, f"Выполняю авто рассылку {distrib.name}...")
                     chatent = await app.get_entity(distrib.belong_to)
                     for chatid in distrib.chats.split(','):
-                        ent = await app.get_entity(int(chatid))
                         try:
+                            ent = await app.get_entity(int(chatid))
                             print("sending to", chatid)
                             
                             await app.forward_messages(ent, distrib.auto_message_id, drop_author=True, from_peer=chatent)
