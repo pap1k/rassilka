@@ -30,11 +30,14 @@ async def auto_task():
                     print("Do")
                 u = db.query(User).filter(User.id == distrib.belong_to).first()
 
-                app = create_client(u.username)
-                await app.connect()
-                if not await app.is_user_authorized():
+                try:
+                    app = create_client(u.username)
+                    await app.connect()
+                    if not await app.is_user_authorized():
+                        raise Exception
+                except Exception:
                     bot.send_message(distrib.belong_to, f"Невозможно выполнить рассылку {distrib.name} так как пользователь не авторизован.")
-                    continue
+                    continue 
                 async with app:
                     todelete = []
                     errors_slow = 0
