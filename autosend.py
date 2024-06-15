@@ -36,7 +36,14 @@ async def auto_task():
                     if not await app.is_user_authorized():
                         raise Exception
                 except Exception:
-                    bot.send_message(distrib.belong_to, f"Невозможно выполнить рассылку {distrib.name} так как пользователь не авторизован.")
+                    
+                    distrib.auto_period = 0
+                    distrib.auto_message_id = 0
+                    db.commit()
+
+                    for admin in config.admin_id:
+                        bot.send_message(admin, f"Невозможно выполнить рассылку {distrib.name} так как пользователь {distrib.belong_to} не авторизован или заблокирован. Авто рассылка деактивирована")
+                    
                     continue 
                 async with app:
                     todelete = []
