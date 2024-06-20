@@ -24,6 +24,9 @@ async def auto_task():
             for distrib in distribs:
                 if str(distrib.id) in sent:
                     print(sent[str(distrib.id)], type(sent[str(distrib.id)]), distrib.auto_period, type(distrib.auto_period))
+                    if distrib.auto_period == 'no':
+                        distrib.auto_period = 0
+                        db.commit()
                     if float(sent[str(distrib.id)]) + float(distrib.auto_period) > time.time():
                         print("Skip")
                         continue

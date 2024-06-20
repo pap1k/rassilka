@@ -27,7 +27,7 @@ def transform_time_to_sec(time, reverse=False):
     for k, v in trans.items():
         if k == time or v == time:
             return k if reverse else v
-    return 'no'
+    return 0
 
 def get_dialogs_bounds(user_id, dialogs: list):
     page = history.get_page_n(user_id)
