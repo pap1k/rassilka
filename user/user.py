@@ -77,7 +77,7 @@ TELEGRAM_API_ID=28639018
 TELEGRAM_API_HASH="f014cc12e32f1f618da532184382c3a7"
 
 def create_client(acc_name: str, loop = None) -> telethon.TelegramClient:
-    return telethon.TelegramClient(acc_name, TELEGRAM_API_ID, TELEGRAM_API_HASH, loop=loop, system_version="1.4.2 DistributionxXXL_AMG(OSX/4:1)", device_model="Factory-New Console v0.41")
+    return telethon.TelegramClient(acc_name, TELEGRAM_API_ID, TELEGRAM_API_HASH, loop=loop, system_version="Android 10.304.31.54.3 zawf", device_model="SberMegaDevice v01.423.4a")
 
 async def auth_tel(acc_name: str, botref: telebot.TeleBot, chatid: int, tel: str):
     loop = asyncio.get_event_loop()
