@@ -45,7 +45,7 @@ async def auto_task():
                     db.commit()
 
                     for admin in config.admin_id:
-                        bot.send_message(admin, f"Невозможно выполнить рассылку {distrib.name} так как пользователь {distrib.belong_to} не авторизован или заблокирован. Авто рассылка деактивирована")
+                        bot.send_message(admin, f"Невозможно выполнить рассылку {distrib.name} так как пользователь {u.username}({distrib.belong_to}) не авторизован или заблокирован. Авто рассылка деактивирована")
                     
                     continue 
                 async with app:
