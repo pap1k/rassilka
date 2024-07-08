@@ -45,8 +45,10 @@ async def auto_task():
                     db.commit()
 
                     for admin in config.admin_id:
-                        bot.send_message(admin, f"Невозможно выполнить рассылку {distrib.name} так как пользователь {u.username}({distrib.belong_to}) не авторизован или заблокирован. Авто рассылка деактивирована")
-                    
+                        if u:
+                            bot.send_message(admin, f"Невозможно выполнить рассылку {distrib.name} так как пользователь {u.username}({distrib.belong_to}) не авторизован или заблокирован. Авто рассылка деактивирована")
+                        else:
+                            bot.send_message(admin, f"Невозможно выполнить рассылку {distrib.name} так как пользователь, которому она принадлежит({distrib.belong_to}) удален из базы бота. Авто рассылка деактивирована")
                     continue 
                 async with app:
                     todelete = []
