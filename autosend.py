@@ -60,7 +60,8 @@ async def auto_task():
                     try:
                         chatent = await app.get_entity(distrib.belong_to)
                     except Exception:
-                        bot.send_message(admin, f"Невозможно выполнить рассылку {distrib.name} из-за внутренней ошибки.")
+                        for admin in config.admin_id:
+                            bot.send_message(admin, f"Невозможно выполнить рассылку {distrib.name} из-за внутренней ошибки.")
                         continue
                     for chatid in distrib.chats.split(','):
                         try:
