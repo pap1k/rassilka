@@ -82,7 +82,7 @@ async def auto_task():
                             print("BASE", e)
                             todelete.append(chatid)
                             errors_unk += 1
-                        await asyncio.sleep(1/80)
+                        await asyncio.sleep(config.SEND_DELAY)
                     print("sending ends")
                     sent[str(distrib.id)] = time.time()
                     bot.send_message(distrib.belong_to, f"Рассылка выполнена. Сообщение успешно доставлено {total} раз")
