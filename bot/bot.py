@@ -17,6 +17,20 @@ bot = telebot.TeleBot(config.BOT_TOKEN, exception_handler=BotException)
 history = HistoryController()
 lastdist = LastDistrib()
 
+def get_current_delay():
+    try:
+        with open(config.SEND_DELAY_FILE, 'r') as f:
+            cur = f.read()
+            return float(cur)
+    except:
+        with open(config.SEND_DELAY_FILE, 'w') as f:
+            f.write(str(config.SEND_DELAY))
+            return get_current_delay()
+    
+def set_current_delay(new):
+    with open(config.SEND_DELAY_FILE, 'w') as f:
+        f.write(str(new))
+
 def transform_time_to_sec(time, reverse=False):
     trans = {
         '30m': 1800,
@@ -136,9 +150,17 @@ def menu_cb(cb: telebot.types.CallbackQuery):
             bot.send_message(cb.message.chat.id, "Выберите рассылку для управления", reply_markup=distrib_mgnmt_menu(cb.from_user.id))
         elif pl == MenuNames.distrib_send_menu:
             bot.send_message(cb.message.chat.id, "Выберите рассылку для выполнения", reply_markup=distrib_send_menu(cb.from_user.id))
+        elif pl == MenuNames.delay_mgnmt:
+            bot.send_message(cb.message.chat.id, f"Укажите новое значение рассылки в секундах в формате x/y или x.y. Текущее значение: {get_current_delay()}, /cancel для отмены")
+            bot.register_next_step_handler_by_chat_id(cb.message.chat.id, delay_input)
         else:
             bot.send_message(cb.message.chat.id, "Произошла ошибка определения нажатой кнопки")
     
+    #МЕНЮ УПРАВЛЕНИЯ ЗАДЕРЖКОЙ
+    elif usermenu == MenuNames.delay_mgnmt:
+        bot.delete_message(cb.message.chat.id, cb.message.id)
+        history.move_down(cb.from_user.id, pl)
+
     #МЕНЮ ОТПРАВКИ РАССЫЛКИ
     elif usermenu == MenuNames.distrib_send_menu:
         bot.delete_message(cb.message.chat.id, cb.message.id)
@@ -417,7 +439,7 @@ def send_distrib_input(message: telebot.types.Message):
                         lastdist.add(ent, False, "Unkown")
                         todelete.append(chatid)
                         errors_unk += 1
-                    await asyncio.sleep(config.SEND_DELAY)
+                    await asyncio.sleep(get_current_delay())
                 print("sending ends")
                 bot.send_message(message.chat.id, f"Рассылка выполнена. Сообщение успешно доставлено {total} раз")
                 if errors_banned + errors_slow + errors_unk > 0:
@@ -446,6 +468,20 @@ def new_distrib_name_input(message: telebot.types.Message):
         db.commit()
         bot.send_message(message.chat.id, f"Успешно создана рассылка {message.text}")
         menu(message.from_user)
+
+def delay_input(message: telebot.types.Message):
+    if message.text.startswith('/cancel'):
+        return menu(message.from_user)
+    if '.' in message.text or message.text.isdigit():
+        newdelay = float(message.text)
+    elif '/' in message.text:
+        ints = message.text.split('/')
+        newdelay = int(ints[0])/int(ints[1])
+    else:
+        bot.reply_to(message, "Введенный текст не является числом. Введите /cancel для отмены")
+        bot.register_next_step_handler_by_chat_id(message.chat.id, delay_input)
+    bot.reply_to(message, f"Успешно установлено новое значение (в секундах {newdelay}, это {int(60//newdelay)} в минуту)")
+    set_current_delay(newdelay)   
 
 def new_user_data_input(message: telebot.types.Message):
     try:

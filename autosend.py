@@ -4,6 +4,15 @@ from sqlalchemy.orm import Session
 from orm.db import engine
 from user.user import create_client
 
+def get_current_delay():
+    try:
+        with open(config.SEND_DELAY_FILE, 'r') as f:
+            cur = f.read()
+            return float(cur)
+    except:
+        with open(config.SEND_DELAY_FILE, 'w') as f:
+            f.write(str(config.SEND_DELAY))
+        return get_current_delay()
 
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
@@ -52,7 +61,7 @@ async def sender(distrib: Distribs, u: User):
                 print("BASE", e)
                 todelete.append(chatid)
                 errors_unk += 1
-            await asyncio.sleep(config.SEND_DELAY)
+            await asyncio.sleep(get_current_delay())
         print(distrib.name, "sending ends")
         bot.send_message(distrib.belong_to, f"Рассылка выполнена. Сообщение успешно доставлено {total} раз")
         if errors_banned + errors_slow + errors_unk > 0:

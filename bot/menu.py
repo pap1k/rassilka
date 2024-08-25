@@ -6,6 +6,7 @@ from orm.db import engine
 
 class MenuNames:
     main = "main"
+    delay_mgnmt = "delay"
     users_mgnmt = "users"
     users_delete_confirm = "users_del_yesno"
     distrib_delete_confirm = "distrib_del_yesno"
@@ -19,12 +20,14 @@ def start_menu(is_admin: bool) -> InlineKeyboardMarkup:
     mk.add(InlineKeyboardButton("Выполнить рассылку", callback_data=f"menu:{MenuNames.distrib_send_menu}"))
     if is_admin:
         mk.add(InlineKeyboardButton("[A] Управление пользователями", callback_data=f"menu:{MenuNames.users_mgnmt}"))
+        mk.add(InlineKeyboardButton("[A] Управление задержкой", callback_data=f"menu:{MenuNames.delay_mgnmt}"))
     mk.add(InlineKeyboardButton("Управление рассылками", callback_data=f"menu:{MenuNames.distrib_mgnmt}"))
     return mk
 
 def admin_menu() -> InlineKeyboardMarkup:
     mk = InlineKeyboardMarkup()
     mk.add(InlineKeyboardButton("[A] Управление пользователями", callback_data=f"menu:{MenuNames.users_mgnmt}"))
+    mk.add(InlineKeyboardButton("[A] Управление задержкой", callback_data=f"menu:{MenuNames.delay_mgnmt}"))
     return mk
 
 def distrib_send_menu(userid, page=1) -> InlineKeyboardMarkup:

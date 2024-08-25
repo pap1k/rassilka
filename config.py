@@ -7,3 +7,4 @@ DB_NAME="DISTRIB"
 
 admin_id = [448582837, 1020207657]
 SEND_DELAY = 3
+SEND_DELAY_FILE = "delay.txt"
