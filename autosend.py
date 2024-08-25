@@ -72,7 +72,9 @@ async def sender(distrib: Distribs, u: User):
             txt += f"Из рассылки атоматически удалены столько чатов - {len(todelete)}"
             bot.send_message(distrib.belong_to, txt)
 
-        return True, [str(distrib.id), ','.join(newids)]
+            return True, [str(distrib.id), ','.join(newids)]
+        return True, [str(distrib.id), None]
+        
     
 async def auto_runner():
     sent = {}
@@ -105,9 +107,10 @@ async def auto_runner():
             ok, payload = await task
             if ok:
                 sent[payload[0]] = time.time()
-                with Session(autoflush=False, bind=engine) as db:
-                    distrib = db.query(Distribs).filter(Distribs.id == payload).first()
-                    distrib.chats = payload[1]
+                if payload[1]:
+                    with Session(autoflush=False, bind=engine) as db:
+                        distrib = db.query(Distribs).filter(Distribs.id == payload).first()
+                        distrib.chats = payload[1]
             else:
                 try:
                     with Session(autoflush=False, bind=engine) as db:
