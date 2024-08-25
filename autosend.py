@@ -16,7 +16,7 @@ def get_current_delay():
 
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
-async def sender(distrib: Distribs, u: User):
+async def sender(distrib: Distribs, u: User, delay: float):
     try:
         app = create_client(u.username)
         await app.connect()
@@ -61,7 +61,7 @@ async def sender(distrib: Distribs, u: User):
                 print("BASE", e)
                 todelete.append(chatid)
                 errors_unk += 1
-            await asyncio.sleep(get_current_delay())
+            await asyncio.sleep(delay)
         print(distrib.name, "sending ends")
         bot.send_message(distrib.belong_to, f"Рассылка выполнена. Сообщение успешно доставлено {total} раз")
         if errors_banned + errors_slow + errors_unk > 0:
@@ -101,7 +101,7 @@ async def auto_runner():
                         print("Skip")
                         continue
                 u = db.query(User).filter(User.id == distrib.belong_to).first()
-                tasks.append(asyncio.create_task(sender(distrib, u)))
+                tasks.append(asyncio.create_task(sender(distrib, u, get_current_delay())))
         
         for task in tasks:
             ok, payload = await task
@@ -109,7 +109,7 @@ async def auto_runner():
                 sent[payload[0]] = time.time()
                 if payload[1]:
                     with Session(autoflush=False, bind=engine) as db:
-                        distrib = db.query(Distribs).filter(Distribs.id == payload).first()
+                        distrib = db.query(Distribs).filter(Distribs.id == int(payload[0])).first()
                         distrib.chats = payload[1]
             else:
                 try:
