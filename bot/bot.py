@@ -25,7 +25,7 @@ def get_current_delay():
     except:
         with open(config.SEND_DELAY_FILE, 'w') as f:
             f.write(str(config.SEND_DELAY))
-            return get_current_delay()
+        return get_current_delay()
     
 def set_current_delay(new):
     with open(config.SEND_DELAY_FILE, 'w') as f:
