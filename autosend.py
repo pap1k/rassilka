@@ -54,6 +54,7 @@ async def sender(distrib: Distribs, u: User, delay: float):
         @app.on(events.NewMessage)
         async def new_handler(event):
             if event.message.mentioned:
+                print(event.message.peer_id)
                 peer_id = int(event.message.peer_id) 
                 if peer_id in resendcounter:
                     resendcounter[peer_id] += 1
