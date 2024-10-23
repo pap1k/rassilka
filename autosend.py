@@ -38,7 +38,7 @@ async def sender(distrib: Distribs, u: User, delay: float):
         return None, distrib.id
     
     async with app:
-        resendcounter = {}
+        resendcounter = []
         todelete = []
         sent = [] #entity
         resend = []
@@ -54,19 +54,20 @@ async def sender(distrib: Distribs, u: User, delay: float):
         @app.on(events.NewMessage)
         async def new_handler(event):
             if event.message.mentioned:
-                if event.message.peer_id in resendcounter:
-                    resendcounter[event.message.peer_id] += 1
+                peer_id = int(event.message.peer_id) 
+                if peer_id in resendcounter:
+                    resendcounter[peer_id] += 1
                 else:
-                    resendcounter[event.message.peer_id] = 1
-                if resendcounter[event.message.peer_id] > 3:
-                    return print(f"Подписки на каналы (из {event.message.peer_id}) превысили лимит, останавливаем эту ерунду")
-                ent = await app.get_entity(event.message.peer_id)
+                    resendcounter[peer_id] = 1
+                if resendcounter[peer_id] > 3:
+                    return print(f"Подписки на каналы (из {peer_id}) превысили лимит, останавливаем эту ерунду")
+                ent = await app.get_entity(peer_id)
                 if ent in sent:
                     txt = event.message.text
                     chats = extract_usernames(txt)
                     for chat in chats:
                         try:
-                            print(f"Подписываемся на канал(из {event.message.peer_id} - {resendcounter[event.message.peer_id]} попытка): ", chat)
+                            print(f"Подписываемся на канал(из {peer_id} - {resendcounter[peer_id]} попытка): ", chat)
                             await app(telethon.functions.channels.JoinChannelRequest(
                                     channel=chat
                                 ))
