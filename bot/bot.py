@@ -383,7 +383,7 @@ def save_autodistrib_message_id(message: telebot.types.Message):
             u = db.query(User).filter(User.id == user_id).first()
             app = create_client(u.username)
             async with app:
-                ent_bot = await app.get_entity(7030989354)
+                ent_bot = await app.get_entity(config.BOT_ID)
                 last_msg = await app.get_messages(ent_bot, limit=2)
                 distr = db.query(Distribs).filter(Distribs.id == st['auto_id']).first()
                 distr.auto_period = transform_time_to_sec(st['auto_period'])
@@ -412,7 +412,7 @@ def send_distrib_input(message: telebot.types.Message):
                 errors_banned = 0
                 errors_unk = 0
                 total = 0
-                ent_bot = await app.get_entity(7030989354)
+                ent_bot = await app.get_entity(config.BOT_ID)
                 last_msg = await app.get_messages(ent_bot)
                 bot.send_message(message.chat.id, "Выполняю рассылку...")
                 for chatid in history.storage[message.from_user.id]['chats'].split(','):
