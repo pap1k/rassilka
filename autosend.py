@@ -104,7 +104,8 @@ async def sender(distrib: Distribs, u: User, delay: float):
                 await app.forward_messages(ent, distrib.auto_message_id, drop_author=True, from_peer=chatent)
                 
                 if isresend:
-                    resend.remove(chatentinity)
+                    if chatentinity in:
+                        resend.remove(chatentinity)
                 else:
                     sent.append(ent)
             except telethon.errors.rpcerrorlist.SlowModeWaitError:
@@ -126,7 +127,8 @@ async def sender(distrib: Distribs, u: User, delay: float):
         while len(resend) > 0:
             for ent in resend:
                 await sendToChat(chatentinity=ent)
-                resend.remove(ent)
+                if ent in resend:
+                    resend.remove(ent)
             await asyncio.sleep(5) #ждем удаления сообщений
         print(distrib.name, "sending ends")
         bot.send_message(distrib.belong_to, f"Рассылка выполнена. Сообщение успешно доставлено {len(sent)} раз")
