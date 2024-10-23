@@ -71,7 +71,8 @@ async def sender(distrib: Distribs, u: User, delay: float):
                             await app(telethon.functions.channels.JoinChannelRequest(
                                     channel=chat
                                 ))
-                            resend.append(ent)
+                            if ent not in resend:
+                                resend.append(ent)
                         except Exception as e:
                             print("Ошибка подписки на канал: ", e)
         ##################
@@ -121,9 +122,11 @@ async def sender(distrib: Distribs, u: User, delay: float):
             await asyncio.sleep(delay)
 
         await asyncio.sleep(10) #ждем удаления сообщений
+        print(resend)
         while len(resend) > 0:
             for ent in resend:
                 await sendToChat(chatentinity=ent)
+                resend.remove(ent)
             await asyncio.sleep(5) #ждем удаления сообщений
         print(distrib.name, "sending ends")
         bot.send_message(distrib.belong_to, f"Рассылка выполнена. Сообщение успешно доставлено {len(sent)} раз")
