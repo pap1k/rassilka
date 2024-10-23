@@ -38,7 +38,7 @@ async def sender(distrib: Distribs, u: User, delay: float):
         return None, distrib.id
     
     async with app:
-        resendcounter = []
+        resendcounter = {}
         todelete = []
         sent = [] #entity
         resend = []
