@@ -106,8 +106,7 @@ async def sender(distrib: Distribs, u: User, delay: float):
                 if isresend:
                     if chatentinity in resend:
                         resend.remove(chatentinity)
-                else:
-                    sent.append(ent)
+                        
             except telethon.errors.rpcerrorlist.SlowModeWaitError:
                 errors['slow']
             except telethon.errors.rpcerrorlist.ChannelPrivateError:
