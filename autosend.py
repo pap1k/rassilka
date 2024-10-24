@@ -17,10 +17,22 @@ def get_current_delay():
 
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
-def extract_usernames(text):
-    pattern = r'@[\w]+'
-    usernames = re.findall(pattern, text)
-    return usernames
+def extract_login_and_link(text):
+    pattern = r'@(\w+)(?:\s*\((https?://[^\s]+)\))?'
+    
+    matches = re.findall(pattern, text)
+    
+    result = ""
+    for match in matches:
+        login = match[0]
+        link = match[1] if match[1] else None
+        
+        if login == "chat" and link:
+            result = login
+        elif login != "chat":
+            result = login
+    
+    return result
 
 async def sender(distrib: Distribs, u: User, delay: float):
     try:
@@ -64,7 +76,7 @@ async def sender(distrib: Distribs, u: User, delay: float):
                 ent = await app.get_entity(peer_id)
                 if ent in sent:
                     txt = event.message.text
-                    chats = extract_usernames(txt)
+                    chats = extract_login_and_link(txt)
                     for chat in chats:
                         try:
                             print(f"Подписываемся на канал(из {peer_id} - {resub[peer_id]} попытка): ", chat)
@@ -90,7 +102,7 @@ async def sender(distrib: Distribs, u: User, delay: float):
                 ent = await app.get_entity(int(chatid))
                 print(distrib.name, "sending to", chatid)
                 await app.forward_messages(ent, distrib.auto_message_id, drop_author=True, from_peer=chatent)
-                sent.append(chatid)
+                sent.append(ent)
                         
             except telethon.errors.rpcerrorlist.SlowModeWaitError:
                 errors['slow']
@@ -106,8 +118,10 @@ async def sender(distrib: Distribs, u: User, delay: float):
         await asyncio.sleep(10) #ждем удаления сообщений
         print(distrib.name, "sending ends")
         bot.send_message(distrib.belong_to, f"Рассылка выполнена. Сообщение успешно доставлено {len(sent)} раз")
-        if errors['banned'] + errors['slow'] + errors['unk'] + errors['subs'] > 0:
-            txt = f"Но есть нюансы. Всего: {errors['banned'] + errors['slow'] + errors['unk'] + errors['subs']}\n{errors['slow']} столько чатов со слоу модом \n{errors['banned']} Столько чатов бан/приватные\n{errors['subs']} На столько каналов подписались\n{errors['unk']} Столько неопознанных ошибок."
+        errorscount = errors['banned'] + errors['slow'] + errors['unk'] + errors['subs']
+        print("info sent, errors: ", errorscount)
+        if errorscount > 0:
+            txt = f"Но есть нюансы. Всего: {errorscount} столько чатов со слоу модом \n{errors['banned']} Столько чатов бан/приватные\n{errors['subs']} На столько каналов подписались\n{errors['unk']} Столько неопознанных ошибок."
             print("report txt\n", txt)
             newids = distrib.chats.split(',')
             newids = list(filter(lambda x: x not in todelete, newids))
