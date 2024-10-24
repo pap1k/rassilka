@@ -104,7 +104,7 @@ async def sender(distrib: Distribs, u: User, delay: float):
                 await app.forward_messages(ent, distrib.auto_message_id, drop_author=True, from_peer=chatent)
                 
                 if isresend:
-                    if chatentinity in:
+                    if chatentinity in resend:
                         resend.remove(chatentinity)
                 else:
                     sent.append(ent)
@@ -123,7 +123,6 @@ async def sender(distrib: Distribs, u: User, delay: float):
             await asyncio.sleep(delay)
 
         await asyncio.sleep(10) #ждем удаления сообщений
-        print(resend)
         while len(resend) > 0:
             for ent in resend:
                 await sendToChat(chatentinity=ent)
