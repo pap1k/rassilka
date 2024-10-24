@@ -38,15 +38,14 @@ async def sender(distrib: Distribs, u: User, delay: float):
         return None, distrib.id
     
     async with app:
-        resendcounter = {}
+        resub = {}
         todelete = []
         sent = [] #entity
-        resend = []
         errors = {
             "slow": 0,
             "banned": 0,
             "unk": 0,
-            "resend": 0
+            "subs": 0
         }
         bot.send_message(distrib.belong_to, f"Выполняю авто рассылку {distrib.name}...")
 
@@ -54,12 +53,13 @@ async def sender(distrib: Distribs, u: User, delay: float):
         @app.on(events.NewMessage)
         async def new_handler(event):
             if event.message.mentioned:
+                print(event.message.text)
                 peer_id = int(event.message.peer_id.channel_id) 
-                if peer_id in resendcounter:
-                    resendcounter[peer_id] += 1
+                if peer_id in resub:
+                    resub[peer_id] += 1
                 else:
-                    resendcounter[peer_id] = 1
-                if resendcounter[peer_id] > 3:
+                    resub[peer_id] = 1
+                if resub[peer_id] > 3:
                     return print(f"Подписки на каналы (из {peer_id}) превысили лимит, останавливаем эту ерунду")
                 ent = await app.get_entity(peer_id)
                 if ent in sent:
@@ -67,12 +67,11 @@ async def sender(distrib: Distribs, u: User, delay: float):
                     chats = extract_usernames(txt)
                     for chat in chats:
                         try:
-                            print(f"Подписываемся на канал(из {peer_id} - {resendcounter[peer_id]} попытка): ", chat)
+                            print(f"Подписываемся на канал(из {peer_id} - {resub[peer_id]} попытка): ", chat)
                             await app(telethon.functions.channels.JoinChannelRequest(
                                     channel=chat
                                 ))
-                            if ent not in resend:
-                                resend.append(ent)
+                            errors["subs"] += 1
                         except Exception as e:
                             print("Ошибка подписки на канал: ", e)
         ##################
@@ -85,27 +84,13 @@ async def sender(distrib: Distribs, u: User, delay: float):
                 
             return None, distrib.id
         
-        async def sendToChat(chatid = None, chatentinity = None):
+
+        for chatid in distrib.chats.split(','):
             try:
-                if chatid:
-                    ent = await app.get_entity(int(chatid))
-                else:
-                    chatid = chatentinity.id
-                    ent = chatentinity
-                isresend = False
-                if ent in resend:
-                    print(distrib.name, "REsending to", chatid)
-                    isresend = True
-                    errors['resend'] += 1
-                else:
-                    print(distrib.name, "sending to", chatid)
-                    sent.append(chatid)
-                
+                ent = await app.get_entity(int(chatid))
+                print(distrib.name, "sending to", chatid)
                 await app.forward_messages(ent, distrib.auto_message_id, drop_author=True, from_peer=chatent)
-                
-                if isresend:
-                    if chatentinity in resend:
-                        resend.remove(chatentinity)
+                sent.append(chatid)
                         
             except telethon.errors.rpcerrorlist.SlowModeWaitError:
                 errors['slow']
@@ -116,22 +101,13 @@ async def sender(distrib: Distribs, u: User, delay: float):
                 print("BASE", e)
                 todelete.append(chatid)
                 errors['unk']
-
-        for chatid in distrib.chats.split(','):
-            await sendToChat(chatid=chatid)
             await asyncio.sleep(delay)
 
         await asyncio.sleep(10) #ждем удаления сообщений
-        while len(resend) > 0:
-            for ent in resend:
-                await sendToChat(chatentinity=ent)
-                if ent in resend:
-                    resend.remove(ent)
-            await asyncio.sleep(5) #ждем удаления сообщений
         print(distrib.name, "sending ends")
         bot.send_message(distrib.belong_to, f"Рассылка выполнена. Сообщение успешно доставлено {len(sent)} раз")
-        if errors['banned'] + errors['slow'] + errors['unk'] + errors['resend'] > 0:
-            txt = f"Но есть нюанс. Всего: {errors['banned'] + errors['slow'] + errors['unk']}\n{errors['slow']} столько чатов со слоу модом \n{errors['banned']} Столько чатов бан/приватные\n{errors['resend']} Столько раз переслали чтобы обойти антифлуд ботов\n{errors['unk']} Столько неопознанных ошибок."
+        if errors['banned'] + errors['slow'] + errors['unk'] + errors['subs'] > 0:
+            txt = f"Но есть нюансы. Всего: {errors['banned'] + errors['slow'] + errors['unk'] + errors['subs']}\n{errors['slow']} столько чатов со слоу модом \n{errors['banned']} Столько чатов бан/приватные\n{errors['subs']} На столько каналов подписались\n{errors['unk']} Столько неопознанных ошибок."
 
             newids = distrib.chats.split(',')
             newids = list(filter(lambda x: x not in todelete, newids))
