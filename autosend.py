@@ -108,7 +108,7 @@ async def sender(distrib: Distribs, u: User, delay: float):
         bot.send_message(distrib.belong_to, f"Рассылка выполнена. Сообщение успешно доставлено {len(sent)} раз")
         if errors['banned'] + errors['slow'] + errors['unk'] + errors['subs'] > 0:
             txt = f"Но есть нюансы. Всего: {errors['banned'] + errors['slow'] + errors['unk'] + errors['subs']}\n{errors['slow']} столько чатов со слоу модом \n{errors['banned']} Столько чатов бан/приватные\n{errors['subs']} На столько каналов подписались\n{errors['unk']} Столько неопознанных ошибок."
-
+            print("report txt\n", txt)
             newids = distrib.chats.split(',')
             newids = list(filter(lambda x: x not in todelete, newids))
             txt += f"\n\nИз рассылки атоматически удалены столько чатов - {len(todelete)}"
