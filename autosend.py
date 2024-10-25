@@ -22,17 +22,17 @@ def extract_login_and_link(text):
     
     matches = re.findall(pattern, text)
     
-    result = ""
+    results = []
     for match in matches:
         login = match[0]
         link = match[1] if match[1] else None
         
         if login == "chat" and link:
-            result = login
+            results.append(login)
         elif login != "chat":
-            result = login
+            results.append(login) 
     
-    return result
+    return results
 
 async def sender(distrib: Distribs, u: User, delay: float):
     try:
