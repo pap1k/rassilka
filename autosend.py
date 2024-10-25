@@ -81,7 +81,7 @@ async def sender(distrib: Distribs, u: User, delay: float):
                         try:
                             print(f"Подписываемся на канал(из {peer_id} - {resub[peer_id]} попытка): ", chat)
                             await app(telethon.functions.channels.JoinChannelRequest(
-                                    channel=chat
+                                    channel='@'+chat
                                 ))
                             errors["subs"] += 1
                         except Exception as e:
@@ -119,10 +119,8 @@ async def sender(distrib: Distribs, u: User, delay: float):
         print(distrib.name, "sending ends")
         bot.send_message(distrib.belong_to, f"Рассылка выполнена. Сообщение успешно доставлено {len(sent)} раз")
         errorscount = errors['banned'] + errors['slow'] + errors['unk'] + errors['subs']
-        print("info sent, errors: ", errorscount)
         if errorscount > 0:
-            txt = f"Но есть нюансы. Всего: {errorscount} столько чатов со слоу модом \n{errors['banned']} Столько чатов бан/приватные\n{errors['subs']} На столько каналов подписались\n{errors['unk']} Столько неопознанных ошибок."
-            print("report txt\n", txt)
+            txt = f"Но есть нюансы. Всего: {errorscount}\n{errors['slow']} Столько чатов со слоу модом\n{errors['banned']} Столько чатов бан/приватные\n{errors['subs']} На столько каналов подписались\n{errors['unk']} Столько неопознанных ошибок."
             newids = distrib.chats.split(',')
             newids = list(filter(lambda x: x not in todelete, newids))
             txt += f"\n\nИз рассылки атоматически удалены столько чатов - {len(todelete)}"
