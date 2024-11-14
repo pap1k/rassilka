@@ -80,9 +80,9 @@ async def sender(distrib: Distribs, u: User, delay: float):
                     for chat in chats:
                         try:
                             print(f"Подписываемся на канал(из {peer_id} - {resub[peer_id]} попытка): ", chat)
-                            await app(telethon.functions.channels.JoinChannelRequest(
-                                    channel='@'+chat
-                                ))
+                            # await app(telethon.functions.channels.JoinChannelRequest(
+                            #         channel='@'+chat
+                            #     ))
                             errors["subs"] += 1
                         except Exception as e:
                             print("Ошибка подписки на канал: ", e)
